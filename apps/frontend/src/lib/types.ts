@@ -1,170 +1,113 @@
 export type Severity = "critical" | "high" | "medium" | "low" | "info";
-export type Status = "open" | "investigating" | "resolved" | "closed" | "pending";
-
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  avatar?: string;
-}
+export type AlertStatus = "new" | "acknowledged" | "investigating" | "resolved" | "closed" | "pending";
+export type IncidentStatus = "open" | "investigating" | "contained" | "resolved" | "closed" | "pending";
 
 export interface SecurityEvent {
   id: string;
+  event_id: string;
   timestamp: string;
-  source_ip: string;
-  destination_ip: string;
-  source_port: number;
-  destination_port: number;
-  event_type: string;
-  severity: Severity;
-  description: string;
-  raw_log: string;
   source: string;
-  user?: string;
-  country?: string;
+  source_type: string;
+  category: string;
+  action: string;
+  user_name?: string | null;
+  source_ip?: string | null;
+  destination_ip?: string | null;
+  destination_port?: number | null;
+  hostname?: string | null;
+  application?: string | null;
+  severity: Severity;
+  risk_score?: number | null;
+  is_alert?: boolean;
+  raw_event?: Record<string, unknown> | null;
+  tags?: string[] | null;
 }
 
 export interface Alert {
   id: string;
-  title: string;
-  description: string;
+  alert_id: string;
+  title?: string | null;
+  description?: string | null;
+  rule_id?: string | null;
   severity: Severity;
-  status: Status;
+  status: AlertStatus;
+  source?: string | null;
+  rule_name?: string | null;
+  event_count?: number;
+  first_seen?: string;
+  last_seen?: string;
+  source_ip?: string | null;
+  hostname?: string | null;
+  user_name?: string | null;
+  category?: string | null;
+  risk_score?: number | null;
+  mitre_tactic?: string | null;
+  mitre_technique?: string | null;
   created_at: string;
-  updated_at: string;
-  source: string;
-  event_ids: string[];
-  assigned_to?: string;
-  mitre_tactic?: string;
-  mitre_technique?: string;
+  updated_at?: string;
+}
+
+export function extractIp(text?: string | null): string | null {
+  if (!text) return null;
+  return text.match(/\b(\d{1,3}(?:\.\d{1,3}){3})\b/)?.[0] ?? null;
 }
 
 export interface Incident {
   id: string;
+  incident_id: string;
   title: string;
-  description: string;
+  description?: string | null;
   severity: Severity;
-  status: Status;
+  status: IncidentStatus;
+  source?: string | null;
+  risk_score?: number | null;
+  assigned_to?: string | null;
+  tags?: string[] | null;
   created_at: string;
-  updated_at: string;
-  assigned_to?: string;
-  alert_ids: string[];
-  event_ids: string[];
-  timeline: TimelineEntry[];
-  iocs: IOC[];
-  ai_analysis?: string;
+  updated_at?: string;
 }
 
-export interface TimelineEntry {
+export interface ThreatIntelEntry {
   id: string;
-  timestamp: string;
-  action: string;
-  user: string;
-  details: string;
+  indicator_type?: string;
+  indicator_value: string;
+  threat_type?: string | null;
+  severity?: Severity | null;
+  confidence?: number | null;
+  source?: string | null;
+  description?: string | null;
+  is_active?: boolean;
+  created_at?: string;
 }
 
-export interface IOC {
+export interface MITRETechniqueEntry {
   id: string;
-  type: "ip" | "domain" | "hash" | "url" | "email";
-  value: string;
-  confidence: number;
-  first_seen: string;
-  last_seen: string;
-  tags: string[];
-}
-
-export interface ThreatIntel {
-  id: string;
-  title: string;
-  description: string;
-  type: string;
-  severity: Severity;
-  source: string;
-  published: string;
-  tags: string[];
-  iocs: IOC[];
-  url?: string;
-}
-
-export interface MITRETactic {
-  id: string;
+  technique_id: string;
   name: string;
-  description: string;
-  techniques: MITRETechnique[];
-}
-
-export interface MITRETechnique {
-  id: string;
   tactic: string;
-  name: string;
-  description: string;
-  detection: string;
-  alert_count: number;
-  status: "active" | "mitigated" | "none";
+  description?: string | null;
+  platform?: string[] | null;
 }
 
-export interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: string;
+export interface Paged<T> {
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
 }
 
-export interface DashboardStats {
-  total_events: number;
-  critical_alerts: number;
-  open_incidents: number;
-  active_threats: number;
-  events_trend: number;
-  alerts_trend: number;
-  incidents_trend: number;
-  threats_trend: number;
+export interface AIAnalyzeResult {
+  response: string;
+  confidence?: number | null;
+  model_used?: string | null;
+  context_sources?: string[];
 }
 
-export interface EventsByHour {
-  hour: string;
-  count: number;
-  critical: number;
-  high: number;
-  medium: number;
-}
-
-export interface AlertsBySeverity {
-  severity: string;
-  count: number;
-  fill: string;
-}
-
-export interface AttackerIP {
-  ip: string;
-  country: string;
-  attacks: number;
-  last_seen: string;
-  status: "active" | "blocked" | "monitoring";
-}
-
-export interface TargetedUser {
-  username: string;
-  department: string;
-  alerts: number;
-  risk_score: number;
-}
-
-export interface Settings {
-  general: {
-    org_name: string;
-    timezone: string;
-    language: string;
-  };
-  notifications: {
-    email_enabled: boolean;
-    slack_enabled: boolean;
-    critical_only: boolean;
-  };
-  retention: {
-    events_days: number;
-    alerts_days: number;
-    incidents_days: number;
-  };
+export interface AISummaryResult {
+  summary: string;
+  key_findings: string[];
+  risk_assessment: string;
+  recommended_actions: string[];
+  mitre_techniques: string[];
+  confidence: number;
 }

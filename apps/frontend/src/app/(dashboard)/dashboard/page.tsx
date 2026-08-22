@@ -1,306 +1,360 @@
 "use client";
 
-import { StatsCard } from "@/components/stats-card";
-import { AlertChart } from "@/components/alert-chart";
-import { SeverityBadge } from "@/components/severity-badge";
-import { Activity, AlertTriangle, Shield, Zap, ExternalLink } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Activity, AlertTriangle, ArrowRight, Ban, Play, Plus, ShieldAlert, Zap } from "lucide-react";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { useApp, usePagedSource } from "@/components/app-shell";
+import { api, runAction } from "@/lib/api";
+import { demoData } from "@/lib/demo-data";
+import { Button3D, Card3D, KpiCard3D, PageHeader, SeverityBadge3D, useToast } from "@/components/ui";
+import { extractIp, type Alert, type Incident, type SecurityEvent, Severity } from "@/lib/types";
+import { timeAgo } from "@/lib/utils";
 
-const stats = [
-  { title: "Total Events (24h)", value: 284593, change: 12.5, icon: Activity, iconColor: "text-cyber-cyan" },
-  { title: "Critical Alerts", value: 23, change: -8.3, icon: AlertTriangle, iconColor: "text-cyber-red" },
-  { title: "Open Incidents", value: 7, change: 16.7, icon: Shield, iconColor: "text-cyber-orange" },
-  { title: "Active Threats", value: 4, change: -33.3, icon: Zap, iconColor: "text-cyber-purple" },
-];
-
-const eventsByHour = [
-  { hour: "00:00", count: 8200, critical: 2, high: 8, medium: 45 },
-  { hour: "01:00", count: 6500, critical: 1, high: 5, medium: 32 },
-  { hour: "02:00", count: 4800, critical: 0, high: 3, medium: 22 },
-  { hour: "03:00", count: 3200, critical: 0, high: 2, medium: 15 },
-  { hour: "04:00", count: 2800, critical: 0, high: 1, medium: 12 },
-  { hour: "05:00", count: 3500, critical: 1, high: 4, medium: 18 },
-  { hour: "06:00", count: 7200, critical: 2, high: 9, medium: 42 },
-  { hour: "07:00", count: 12500, critical: 3, high: 15, medium: 68 },
-  { hour: "08:00", count: 18900, critical: 5, high: 28, medium: 95 },
-  { hour: "09:00", count: 22100, critical: 4, high: 22, medium: 88 },
-  { hour: "10:00", count: 24500, critical: 3, high: 18, medium: 76 },
-  { hour: "11:00", count: 21800, critical: 2, high: 16, medium: 72 },
-  { hour: "12:00", count: 15200, critical: 1, high: 10, medium: 48 },
-  { hour: "13:00", count: 19800, critical: 3, high: 20, medium: 82 },
-  { hour: "14:00", count: 23400, critical: 4, high: 24, medium: 90 },
-  { hour: "15:00", count: 21200, critical: 2, high: 18, medium: 78 },
-  { hour: "16:00", count: 18600, critical: 1, high: 14, medium: 65 },
-  { hour: "17:00", count: 14200, critical: 1, high: 10, medium: 52 },
-  { hour: "18:00", count: 10800, critical: 0, high: 8, medium: 38 },
-  { hour: "19:00", count: 8900, critical: 0, high: 6, medium: 30 },
-  { hour: "20:00", count: 7200, critical: 1, high: 5, medium: 25 },
-  { hour: "21:00", count: 6100, critical: 0, high: 4, medium: 20 },
-  { hour: "22:00", count: 5400, critical: 0, high: 3, medium: 18 },
-  { hour: "23:00", count: 4800, critical: 1, high: 3, medium: 15 },
-];
-
-const alertsBySeverity = [
-  { severity: "Critical", count: 23, fill: "#ef4444" },
-  { severity: "High", count: 87, fill: "#f59e0b" },
-  { severity: "Medium", count: 234, fill: "#3b82f6" },
-  { severity: "Low", count: 456, fill: "#10b981" },
-  { severity: "Info", count: 892, fill: "#64748b" },
-];
-
-const topAttackerIPs = [
-  { ip: "185.220.101.34", country: "Russia", attacks: 1247, last_seen: "2 min ago", status: "active" },
-  { ip: "103.43.75.120", country: "China", attacks: 892, last_seen: "5 min ago", status: "blocked" },
-  { ip: "45.155.205.233", country: "Netherlands", attacks: 634, last_seen: "12 min ago", status: "monitoring" },
-  { ip: "194.26.29.123", country: "Ukraine", attacks: 421, last_seen: "18 min ago", status: "blocked" },
-  { ip: "91.134.203.58", country: "France", attacks: 287, last_seen: "25 min ago", status: "monitoring" },
-];
-
-const topTargetedUsers = [
-  { username: "j.martinez", department: "Engineering", alerts: 34, risk_score: 87 },
-  { username: "admin", department: "IT Admin", alerts: 28, risk_score: 92 },
-  { username: "s.chen", department: "Finance", alerts: 19, risk_score: 65 },
-  { username: "r.williams", department: "HR", alerts: 15, risk_score: 54 },
-  { username: "backup-svc", department: "Operations", alerts: 12, risk_score: 71 },
-];
-
-const recentAlerts = [
-  { id: "ALT-7842", title: "Brute Force Attack Detected", severity: "critical" as const, time: "2 min ago", source: "WAF-01" },
-  { id: "ALT-7841", title: "Suspicious Outbound Connection", severity: "high" as const, time: "8 min ago", source: "EDR-03" },
-  { id: "ALT-7840", title: "Malware Signature Match", severity: "critical" as const, time: "15 min ago", source: "AV-02" },
-  { id: "ALT-7839", title: "Anomalous Login Pattern", severity: "medium" as const, time: "22 min ago", source: "IAM-01" },
-  { id: "ALT-7838", title: "Data Exfiltration Attempt", severity: "high" as const, time: "35 min ago", source: "DLP-01" },
-  { id: "ALT-7837", title: "Privilege Escalation Detected", severity: "critical" as const, time: "41 min ago", source: "SIEM-01" },
-  { id: "ALT-7836", title: "Unauthorized USB Device", severity: "low" as const, time: "1 hr ago", source: "EDR-01" },
-];
-
-const actorConnections = [
-  { name: "SOC Analyst", role: "Incident Lead", status: "online", nodes: ["SIEM", "EDR", "IAM"] },
-  { name: "Firewall", role: "Perimeter Gate", status: "online", nodes: ["WAF", "VPN", "Proxy"] },
-  { name: "EDR Cluster", role: "Endpoint Defense", status: "degraded", nodes: ["Laptop", "Server", "Workstation"] },
-  { name: "IAM", role: "Identity Access", status: "online", nodes: ["AD", "Okta", "VPN"] },
-];
+const SEV_COLORS: Record<Severity, string> = {
+  critical: "#f43f5e",
+  high: "#fb923c",
+  medium: "#fbbf24",
+  low: "#38bdf8",
+  info: "#64748b",
+};
 
 export default function DashboardPage() {
-  const maxSeverityCount = Math.max(...alertsBySeverity.map((item) => item.count));
+  const router = useRouter();
+  const toast = useToast();
+  const { counts, refresh } = useApp();
+
+  const events = usePagedSource<SecurityEvent>(
+    () => api.events({ page: 1, page_size: 200 }),
+    { items: demoData.events, total: demoData.events.length }
+  );
+  const alerts = usePagedSource<Alert>(
+    () => api.alerts({ page: 1, page_size: 200 }),
+    { items: demoData.alerts, total: demoData.alerts.length }
+  );
+  const incidents = usePagedSource<Incident>(
+    () => api.incidents({ page: 1, page_size: 200 }),
+    { items: demoData.incidents, total: demoData.incidents.length }
+  );
+
+  const [feedPaused, setFeedPaused] = useState(false);
+  const [creatingIncident, setCreatingIncident] = useState(false);
+
+  // Live incident creation form state
+  const [newTitle, setNewTitle] = useState("");
+  const [newSeverity, setNewSeverity] = useState<Severity>("high");
+  const [formOpen, setFormOpen] = useState(false);
+
+  const byHour = useMemo(() => {
+    const buckets = new Map<string, number>();
+    const now = new Date();
+    for (let h = 11; h >= 0; h--) {
+      const d = new Date(now.getTime() - h * 3600_000);
+      buckets.set(`${String(d.getHours()).padStart(2, "0")}:00`, 0);
+    }
+    for (const e of events.items) {
+      const key = `${String(new Date(e.timestamp).getHours()).padStart(2, "0")}:00`;
+      if (buckets.has(key)) buckets.set(key, (buckets.get(key) ?? 0) + 1);
+    }
+    return [...buckets.entries()].map(([hour, count]) => ({ hour, count }));
+  }, [events.items]);
+
+  const bySeverity = useMemo(() => {
+    const order: Severity[] = ["critical", "high", "medium", "low", "info"];
+    return order
+      .map((sev) => ({
+        name: sev,
+        value: alerts.items.filter((a) => a.severity === sev).length,
+        color: SEV_COLORS[sev],
+      }))
+      .filter((d) => d.value > 0);
+  }, [alerts.items]);
+
+  const recentAlerts = useMemo(
+    () =>
+      [...alerts.items]
+        .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))
+        .slice(0, feedPaused ? 0 : 6),
+    [alerts.items, feedPaused]
+  );
+
+  // Demo feed simulation
+  const [demoTick, setDemoTick] = useState(0);
+  useEffect(() => {
+    if (feedPaused) return;
+    const id = setInterval(() => setDemoTick((t) => t + 1), 4000);
+    return () => clearInterval(id);
+  }, [feedPaused]);
+
+  async function handleBlockIp(alert: Alert) {
+    const ip = alert.source_ip ?? extractIp(alert.description);
+    if (!ip) {
+      toast("No source IP recorded on this alert", "err");
+      return;
+    }
+    const msg = await runAction(
+      () => api.blockIp(ip, `Blocked for alert ${alert.alert_id}`),
+      `IP ${ip} blocked (firewall rule queued)`,
+      false
+    );
+    toast(msg, "ok");
+  }
+
+  async function handleCreateIncident() {
+    if (!newTitle.trim()) {
+      toast("Give the incident a title first", "err");
+      return;
+    }
+    setCreatingIncident(true);
+    const msg = await runAction(
+      () => api.createIncident({ title: newTitle, severity: newSeverity, description: "Created from SOC dashboard" }),
+      `Incident "${newTitle}" created`,
+      false
+    );
+    setCreatingIncident(false);
+    setFormOpen(false);
+    setNewTitle("");
+    toast(msg, "ok");
+    refresh();
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <StatsCard key={stat.title} {...stat} />
-        ))}
+    <>
+      <PageHeader
+        title="Security Operations Center"
+        subtitle={`Real-time posture · ${counts.events.toLocaleString()} events · ${counts.alerts.toLocaleString()} alerts · ${counts.openIncidents} open incidents`}
+        actions={
+          <>
+            <Button3D variant="primary" onClick={() => setFormOpen(true)}>
+              <Plus className="h-4 w-4" /> New Incident
+            </Button3D>
+            <Button3D onClick={() => setFeedPaused((p) => !p)}>
+              {feedPaused ? <Play className="h-4 w-4" /> : null}
+              {feedPaused ? "Resume Feed" : "Pause Feed"}
+            </Button3D>
+          </>
+        }
+      />
+
+      {/* KPI row */}
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        <KpiCard3D
+          label="Events (24h)"
+          value={events.total}
+          tone="cyan"
+          icon={<Activity className="h-6 w-6" />}
+          hint="ingested security events"
+          onClick={() => router.push("/events")}
+        />
+        <KpiCard3D
+          label="Critical Alerts"
+          value={counts.criticalAlerts}
+          tone="red"
+          icon={<AlertTriangle className="h-6 w-6" />}
+          hint="requiring triage"
+          onClick={() => router.push("/alerts")}
+        />
+        <KpiCard3D
+          label="Open Incidents"
+          value={counts.openIncidents}
+          tone="orange"
+          icon={<ShieldAlert className="h-6 w-6" />}
+          hint="active investigations"
+          onClick={() => router.push("/incidents")}
+        />
+        <KpiCard3D
+          label="Threat Actors Seen"
+          value={new Set(events.items.map((e) => e.source_ip).filter(Boolean)).size}
+          tone="violet"
+          icon={<Zap className="h-6 w-6" />}
+          hint="distinct source IPs"
+        />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <AlertChart data={eventsByHour} />
-        </div>
-        <div className="card-glow rounded-xl p-5">
-          <h3 className="text-sm font-medium text-slate-400 mb-4">Alerts by Severity</h3>
-          <div className="flex h-[300px] items-end gap-3 rounded-lg border border-soc-border/60 bg-soc-bg/30 p-4">
-            {alertsBySeverity.map((item) => (
-              <div key={item.severity} className="group flex h-full flex-1 flex-col justify-end gap-2">
-                <div className="relative flex flex-1 items-end">
-                  <div
-                    className="w-full rounded-t-md transition-all duration-150 group-hover:brightness-125"
-                    style={{
-                      height: `${Math.max(12, (item.count / maxSeverityCount) * 100)}%`,
-                      backgroundColor: item.fill,
-                    }}
-                  />
-                  <div className="pointer-events-none absolute bottom-full left-1/2 mb-2 hidden -translate-x-1/2 rounded-lg border border-soc-border bg-soc-card px-3 py-2 text-xs shadow-xl group-hover:block">
-                    <p className="font-medium text-white">{item.severity}</p>
-                    <p className="text-slate-400">{item.count.toLocaleString()} alerts</p>
-                  </div>
-                </div>
-                <span className="truncate text-center text-xs text-slate-500">{item.severity}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="card-glow rounded-xl p-5">
+      {/* Charts row */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card3D className="p-5 lg:col-span-2">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-sm font-medium text-slate-400">Threat Map</h3>
-            <button type="button" className="flex items-center gap-1 text-xs text-cyber-cyan transition-colors hover:text-cyber-cyan/80">
-              View All <ExternalLink className="h-3 w-3" />
-            </button>
+            <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400">Event Flow (12h)</h3>
+            <span className="chip-3d chip-3d-active">Hourly</span>
           </div>
-          <div className="relative h-[260px] overflow-hidden rounded-xl border border-soc-border/60 bg-[#081827]/80">
-            <div className="absolute inset-0 opacity-50" style={{ background: "radial-gradient(circle at center, rgba(59,130,246,0.14), transparent 55%)" }} />
-            <svg viewBox="0 0 600 260" className="relative h-full w-full">
-              <path d="M90 120 C160 70, 210 70, 270 115 S380 180, 470 120 S560 90, 580 120" fill="none" stroke="rgba(148,163,184,0.22)" strokeWidth="2" />
-              <path d="M120 170 C200 150, 250 170, 320 140 S430 100, 510 145" fill="none" stroke="rgba(148,163,184,0.14)" strokeWidth="2" />
-              <circle cx="150" cy="110" r="8" fill="#ef4444" opacity="0.9" />
-              <circle cx="310" cy="142" r="9" fill="#f59e0b" opacity="0.9" />
-              <circle cx="430" cy="118" r="10" fill="#3b82f6" opacity="0.9" />
-              <circle cx="492" cy="150" r="7" fill="#ef4444" opacity="0.9" />
-              <circle cx="228" cy="160" r="6" fill="#10b981" opacity="0.9" />
-              <g fill="#dbeafe" fontSize="10" fontWeight="600">
-                <text x="136" y="92">EU</text>
-                <text x="292" y="124">US</text>
-                <text x="414" y="100">APAC</text>
-                <text x="476" y="170">LATAM</text>
-              </g>
-            </svg>
-            <div className="absolute bottom-4 left-4 rounded-lg border border-soc-border bg-soc-card/90 px-3 py-2 shadow-lg shadow-black/20">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Risk zones</p>
-              <p className="mt-1 text-sm font-medium text-white">4 high-risk countries</p>
-            </div>
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={byHour}>
+                <defs>
+                  <linearGradient id="evgrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#00d4ff" stopOpacity={0.5} />
+                    <stop offset="100%" stopColor="#00d4ff" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
+                <XAxis dataKey="hour" stroke="#475569" fontSize={11} />
+                <YAxis stroke="#475569" fontSize={11} />
+                <Tooltip
+                  contentStyle={{
+                    background: "#0f172a",
+                    border: "1px solid #334155",
+                    borderRadius: 10,
+                    boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+                  }}
+                />
+                <Area type="monotone" dataKey="count" stroke="#00d4ff" strokeWidth={2} fill="url(#evgrad)" />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
-        </div>
+        </Card3D>
 
-        <div className="card-glow rounded-xl p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-sm font-medium text-slate-400">Actor Connections</h3>
-            <button type="button" className="flex items-center gap-1 text-xs text-cyber-cyan transition-colors hover:text-cyber-cyan/80">
-              View All <ExternalLink className="h-3 w-3" />
-            </button>
-          </div>
-          <div className="space-y-3">
-            {actorConnections.map((actor) => (
-              <div key={actor.name} className="rounded-xl border border-soc-border/60 bg-soc-surface/20 p-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-white">{actor.name}</p>
-                    <p className="text-xs text-slate-400">{actor.role}</p>
-                  </div>
-                  <span className={`rounded-full px-2 py-1 text-[10px] font-medium uppercase tracking-wide ${
-                    actor.status === "online" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                  }`}>
-                    {actor.status}
-                  </span>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {actor.nodes.map((node) => (
-                    <span key={node} className="inline-flex rounded-full border border-soc-border bg-soc-card px-2 py-1 text-[10px] text-slate-300">
-                      {node}
-                    </span>
+        <Card3D className="p-5">
+          <h3 className="mb-4 text-sm font-bold uppercase tracking-widest text-slate-400">Alerts by Severity</h3>
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={bySeverity}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={52}
+                  outerRadius={80}
+                  paddingAngle={4}
+                  stroke="#0b1120"
+                  strokeWidth={3}
+                >
+                  {bySeverity.map((d) => (
+                    <Cell key={d.name} fill={d.color} />
                   ))}
-                </div>
-              </div>
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    background: "#0f172a",
+                    border: "1px solid #334155",
+                    borderRadius: 10,
+                    boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="mt-2 flex flex-wrap justify-center gap-2">
+            {bySeverity.map((d) => (
+              <span key={d.name} className="chip-3d !cursor-default !px-2.5 !py-0.5 !text-[10px]">
+                <span className="h-2 w-2 rounded-full" style={{ background: d.color, boxShadow: `0 0 8px ${d.color}` }} />
+                {d.name} · {d.value}
+              </span>
             ))}
           </div>
-        </div>
+        </Card3D>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="card-glow rounded-xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-slate-400">Top Attacker IPs</h3>
-            <button type="button" className="text-xs text-cyber-cyan hover:text-cyber-cyan/80 flex items-center gap-1 transition-colors">
-              View All <ExternalLink className="h-3 w-3" />
-            </button>
+      {/* Live feed + recent incidents */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card3D className="p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-slate-400">
+              <span className={`${feedPaused ? "" : "pulse-ring"} h-2.5 w-2.5 rounded-full bg-rose-500`} />
+              Live Alert Feed
+            </h3>
+            <Button3D size="sm" onClick={() => router.push("/alerts")}>
+              All alerts <ArrowRight className="h-3.5 w-3.5" />
+            </Button3D>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-soc-border">
-                  <th className="pb-2 text-left text-xs font-medium text-slate-500">IP Address</th>
-                  <th className="pb-2 text-left text-xs font-medium text-slate-500">Country</th>
-                  <th className="pb-2 text-left text-xs font-medium text-slate-500">Attacks</th>
-                  <th className="pb-2 text-left text-xs font-medium text-slate-500">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-soc-border/50">
-                {topAttackerIPs.map((ip) => (
-                  <tr key={ip.ip} className="hover:bg-soc-surface/30 transition-colors">
-                    <td className="py-2.5 text-sm font-mono text-cyber-cyan">{ip.ip}</td>
-                    <td className="py-2.5 text-sm text-slate-300">{ip.country}</td>
-                    <td className="py-2.5 text-sm font-medium text-white">{ip.attacks.toLocaleString()}</td>
-                    <td className="py-2.5">
-                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                        ip.status === "active"
-                          ? "bg-cyber-red/10 text-cyber-red border border-cyber-red/20"
-                          : ip.status === "blocked"
-                          ? "bg-slate-500/10 text-slate-400 border border-slate-500/20"
-                          : "bg-cyber-orange/10 text-cyber-orange border border-cyber-orange/20"
-                      }`}>
-                        {ip.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="card-glow rounded-xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-slate-400">Top Targeted Users</h3>
-            <button type="button" className="text-xs text-cyber-cyan hover:text-cyber-cyan/80 flex items-center gap-1 transition-colors">
-              View All <ExternalLink className="h-3 w-3" />
-            </button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-soc-border">
-                  <th className="pb-2 text-left text-xs font-medium text-slate-500">User</th>
-                  <th className="pb-2 text-left text-xs font-medium text-slate-500">Department</th>
-                  <th className="pb-2 text-left text-xs font-medium text-slate-500">Alerts</th>
-                  <th className="pb-2 text-left text-xs font-medium text-slate-500">Risk</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-soc-border/50">
-                {topTargetedUsers.map((user) => (
-                  <tr key={user.username} className="hover:bg-soc-surface/30 transition-colors">
-                    <td className="py-2.5 text-sm font-medium text-white">{user.username}</td>
-                    <td className="py-2.5 text-sm text-slate-400">{user.department}</td>
-                    <td className="py-2.5 text-sm text-slate-300">{user.alerts}</td>
-                    <td className="py-2.5">
-                      <div className="flex items-center gap-2">
-                        <div className="h-1.5 w-16 rounded-full bg-soc-surface overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${
-                              user.risk_score >= 80 ? "bg-cyber-red" : user.risk_score >= 60 ? "bg-cyber-orange" : "bg-cyber-green"
-                            }`}
-                            style={{ width: `${user.risk_score}%` }}
-                          />
-                        </div>
-                        <span className={`text-xs font-medium ${
-                          user.risk_score >= 80 ? "text-cyber-red" : user.risk_score >= 60 ? "text-cyber-orange" : "text-cyber-green"
-                        }`}>
-                          {user.risk_score}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <div className="card-glow rounded-xl p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-medium text-slate-400">Recent Alerts</h3>
-          <button type="button" className="text-xs text-cyber-cyan hover:text-cyber-cyan/80 flex items-center gap-1 transition-colors">
-            View All <ExternalLink className="h-3 w-3" />
-          </button>
-        </div>
-        <div className="space-y-2">
-          {recentAlerts.map((alert) => (
-            <div
-              key={alert.id}
-              className="flex items-center justify-between rounded-lg border border-soc-border/50 bg-soc-surface/30 px-4 py-3 hover:bg-soc-surface/60 transition-colors cursor-pointer"
-            >
-              <div className="flex items-center gap-4">
-                <SeverityBadge severity={alert.severity} />
-                <div>
-                  <p className="text-sm font-medium text-white">{alert.title}</p>
-                  <p className="text-xs text-slate-500">{alert.id} - {alert.source}</p>
+          <div className="space-y-2.5" key={demoTick}>
+            {recentAlerts.map((a) => (
+              <div
+                key={a.id}
+                className="panel-inset animate-pop flex items-center gap-3 px-3.5 py-2.5"
+              >
+                <SeverityBadge3D severity={a.severity} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-slate-200">{a.title ?? a.rule_id}</p>
+                  <p className="truncate text-xs text-slate-500">
+                    {a.alert_id} · {a.source_ip ?? "—"} · {a.hostname ?? "—"}
+                  </p>
                 </div>
+                <span className="shrink-0 text-xs text-slate-500">{timeAgo(a.created_at)}</span>
+                <Button3D size="sm" variant="danger" onClick={() => handleBlockIp(a)} title={`Block ${a.source_ip}`}>
+                  <Ban className="h-3.5 w-3.5" />
+                </Button3D>
               </div>
-              <span className="text-xs text-slate-500">{alert.time}</span>
-            </div>
-          ))}
-        </div>
+            ))}
+            {feedPaused ? <p className="py-8 text-center text-sm text-slate-500">Feed paused — press Resume.</p> : null}
+          </div>
+        </Card3D>
+
+        <Card3D className="p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400">Recent Incidents</h3>
+            <Button3D size="sm" onClick={() => router.push("/incidents")}>
+              Open console <ArrowRight className="h-3.5 w-3.5" />
+            </Button3D>
+          </div>
+          <div className="space-y-2.5">
+            {[...incidents.items]
+              .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))
+              .slice(0, 5)
+              .map((i) => (
+                <button
+                  key={i.id}
+                  onClick={() => router.push(`/incidents`)}
+                  className="panel-inset flex w-full items-center gap-3 px-3.5 py-2.5 text-left transition-all hover:translate-x-1 hover:border-cyan-500/40"
+                >
+                  <SeverityBadge3D severity={i.severity} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-slate-200">{i.title}</p>
+                    <p className="truncate text-xs text-slate-500">
+                      {i.incident_id} · {i.status}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-xs text-slate-500">{timeAgo(i.created_at)}</span>
+                </button>
+              ))}
+          </div>
+        </Card3D>
       </div>
-    </div>
+
+      {/* New incident modal */}
+      {formOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onClick={() => setFormOpen(false)}>
+          <div className="card-3d animate-pop w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-3d mb-4 text-lg font-bold text-white">Declare Incident</h3>
+            <label className="mb-1 block text-xs font-bold uppercase tracking-widest text-slate-400">Title</label>
+            <input
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              placeholder="e.g. Suspicious lateral movement"
+              className="panel-inset mb-4 w-full px-3 py-2 text-sm text-slate-200 placeholder-slate-600 outline-none"
+            />
+            <label className="mb-1 block text-xs font-bold uppercase tracking-widest text-slate-400">Severity</label>
+            <div className="mb-5 flex flex-wrap gap-2">
+              {(["critical", "high", "medium", "low"] as Severity[]).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setNewSeverity(s)}
+                  className={`chip-3d ${newSeverity === s ? "chip-3d-active" : ""}`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button3D onClick={() => setFormOpen(false)}>Cancel</Button3D>
+              <Button3D variant="primary" loading={creatingIncident} onClick={handleCreateIncident}>
+                Create
+              </Button3D>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }

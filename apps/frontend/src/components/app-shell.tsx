@@ -161,7 +161,13 @@ function AppShellInner({ children }: { children: ReactNode }) {
     [counts]
   );
 
+  const appState = useMemo<AppState>(
+    () => ({ source, settings, counts, refreshKey, refresh, setSettings }),
+    [source, settings, counts, refreshKey, refresh, setSettings]
+  );
+
   return (
+    <AppCtx.Provider value={appState}>
     <div className="relative z-10 flex min-h-screen">
       {/* ─── Sidebar ─── */}
       <aside
@@ -266,6 +272,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
         </main>
       </div>
     </div>
+    </AppCtx.Provider>
   );
 }
 

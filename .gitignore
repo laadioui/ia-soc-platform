@@ -81,3 +81,6 @@ data/
 
 # Temp files
 tmp-*.json
+
+# Local tunnel tooling
+.tools/

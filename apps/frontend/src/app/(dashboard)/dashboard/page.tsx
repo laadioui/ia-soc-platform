@@ -278,11 +278,11 @@ export default function DashboardPage() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-slate-200">{a.title ?? a.rule_id}</p>
                   <p className="truncate text-xs text-slate-500">
-                    {a.alert_id} · {a.source_ip ?? "—"} · {a.hostname ?? "—"}
+                    {a.alert_id} · {extractIp(a.description) ?? a.source_ip ?? "—"} · {a.hostname ?? a.source ?? "—"}
                   </p>
                 </div>
                 <span className="shrink-0 text-xs text-slate-500">{timeAgo(a.created_at)}</span>
-                <Button3D size="sm" variant="danger" onClick={() => handleBlockIp(a)} title={`Block ${a.source_ip}`}>
+                <Button3D size="sm" variant="danger" onClick={() => handleBlockIp(a)} title={`Block ${extractIp(a.description) ?? a.source_ip ?? "IP"}`}>
                   <Ban className="h-3.5 w-3.5" />
                 </Button3D>
               </div>

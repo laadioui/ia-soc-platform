@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: opensearch
+  namespace: ai-soc
+  labels:
+    app.kubernetes.io/name: opensearch
+    app.kubernetes.io/part-of: ai-soc-platform
+spec:
+  serviceName: opensearch
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: opensearch
+  podManagementPolicy: Parallel
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: opensearch
+        app.kubernetes.io/part-of: ai-soc-platform
+    spec:
+      initContainers:
+        - name: sysctl
+          image: busybox:1.36
+          command:
+            - sysctl
+            - -w
+            - vm.max_map_count=262144
+          securityContext:
+            privileged: true
+            runAsUser: 0
+      containers:
+        - name: opensearch
+          image: opensearchproject/opensearch:2.12.0
+          ports:
+            - containerPort: 9200
+              name: http
+            - containerPort: 9300
+              name: transport
+          env:
+            - name: cluster.name
+              value: ai-soc-cluster
+            - name: node.name
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: discovery.seed_hosts
+              value: "opensearch-0.opensearch.ai-soc.svc.cluster.local,opensearch-1.opensearch.ai-soc.svc.cluster.local"
+            - name: cluster.initial_cluster_manager_nodes
+              value: "opensearch-0.opensearch.ai-soc.svc.cluster.local,opensearch-1.opensearch.ai-soc.svc.cluster.local"
+            - name: OPENSEARCH_JAVA_OPTS
+              value: "-Xms1g -Xmx1g"
+            - name: DISABLE_SECURITY_PLUGIN
+              value: "true"
+            - name: bootstrap.memory_lock
+              value: "true"
+          volumeMounts:
+            - name: opensearch-data
+              mountPath: /usr/share/opensearch/data
+          resources:
+            requests:
+              cpu: 1
+              memory: 2Gi
+            limits:
+              cpu: 2
+              memory: 4Gi
+          livenessProbe:
+            httpGet:
+              path: /_cluster/health
+              port: http
+            initialDelaySeconds: 90
+            periodSeconds: 15
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /_cluster/health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+      volumes:
+        - name: opensearch-data
+          emptyDir: {}
+      tolerations:
+        - key: workload
+          operator: Equal
+          value: search
+          effect: NoSchedule

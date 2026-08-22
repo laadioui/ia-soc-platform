@@ -1,0 +1,83 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+
+# Node
+node_modules/
+.next/
+out/
+.turbo/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ML Models (large files)
+ml/models/*.pkl
+ml/models/*.pt
+ml/models/*.onnx
+ml/datasets/
+
+# Secrets
+*.pem
+*.key
+credentials.json
+secrets/
+
+# Docker
+docker-compose.override.yml
+
+# Logs
+*.log
+logs/
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+*.tfvars
+
+# Build artifacts
+*.tar.gz
+*.zip
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OpenSearch / Kafka data volumes
+data/
+
+# SQLite databases
+*.db
+*.sqlite3
+
+# Temp files
+tmp-*.json

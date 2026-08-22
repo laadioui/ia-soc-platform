@@ -1,0 +1,44 @@
+aws_region   = "us-east-1"
+project_name = "ai-soc-platform"
+environment  = "production"
+
+# EKS
+cluster_version        = "1.29"
+node_instance_types    = ["m6i.xlarge", "m6i.2xlarge"]
+node_desired_size      = 3
+node_min_size          = 2
+node_max_size          = 10
+gpu_node_instance_types = ["p3.2xlarge"]
+gpu_node_desired_size  = 1
+gpu_node_min_size      = 0
+gpu_node_max_size      = 3
+
+# PostgreSQL RDS
+postgres_instance_class        = "db.r6g.xlarge"
+postgres_allocated_storage     = 100
+postgres_max_allocated_storage = 500
+postgres_password              = "CHANGE_ME_postgres_password"
+
+# Redis ElastiCache
+redis_node_type      = "cache.r6g.large"
+redis_num_cache_nodes = 2
+redis_password       = "CHANGE_ME_redis_password"
+
+# Kafka MSK
+kafka_instance_type = "kafka.m5.large"
+kafka_broker_count  = 3
+kafka_ebs_volume_size = 500
+
+# OpenSearch
+opensearch_instance_type  = "m6g.xlarge.search"
+opensearch_instance_count = 2
+opensearch_volume_size    = 100
+opensearch_password       = "CHANGE_ME_opensearch_password"
+
+# DNS
+route53_zone_name = "aisoc.example.com"
+certificate_arn   = ""
+
+# Auth
+keycloak_admin_password = "CHANGE_ME_keycloak_admin"
+jwt_secret_key          = "CHANGE_ME_jwt_secret_key_min_32_characters"

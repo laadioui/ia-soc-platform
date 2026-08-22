@@ -1,0 +1,76 @@
+title: Privilege Escalation Attempt
+id: 4c5e7f9a-1b3c-6d4e-0a8b-2c6d9e1f3a5b
+status: stable
+description: |
+  Detects potential privilege escalation attempts on Linux systems through
+  sudo abuse, SUID binary exploitation, capability abuse, or unauthorized
+  cron job creation. Monitors for suspicious patterns indicating an attempt
+  to gain elevated privileges beyond authorized access.
+author: AI SOC Platform
+date: 2024/01/15
+modified: 2024/06/01
+tags:
+  - attack.privilege_escalation
+  - attack.t1548
+  - attack.t1543
+  - linux
+logsource:
+  category: process_creation
+  product: linux
+detection:
+  sudo_abuse:
+    event_type: process_creation
+    exe: /usr/bin/sudo
+    command_line|contains:
+      - "NOPASSWD"
+      - "-i"
+      - "-s"
+      - "env "
+      - "find "
+      - "-exec"
+  suid_exploitation:
+    event_type: process_creation
+    image|endswith:
+      - "/ping"
+      - "/nmap"
+      - "/python"
+      - "/perl"
+      - "/ruby"
+      - "/env"
+      - "/awk"
+    parent_image|endswith:
+      - "/ping"
+      - "/nmap"
+      - "/python"
+      - "/perl"
+      - "/ruby"
+      - "/env"
+      - "/awk"
+  capability_abuse:
+    event_type: process_creation
+    exe: /usr/sbin/setcap
+  cron_escalation:
+    event_type: file_modification
+    target_filename|startswith:
+      - "/etc/cron"
+      - "/var/spool/cron"
+    user: root
+    status: modified
+  su_binary:
+    event_type: process_creation
+    exe|endswith: /su
+    parent_user|contains: "!root"
+  condition: sudo_abuse or suid_exploitation or capability_abuse or cron_escalation or su_binary
+  fields:
+    - user
+    - exe
+    - command_line
+    - parent_process_name
+    - parent_image
+    - src_ip
+    - target_filename
+falsepositives:
+  - System administrators performing legitimate administrative tasks
+  - Authorized automation scripts running as root
+  - Ansible or Puppet deployments during provisioning
+level: high

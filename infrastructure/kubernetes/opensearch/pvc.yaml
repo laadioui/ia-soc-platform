@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: opensearch-data
+  namespace: ai-soc
+  labels:
+    app.kubernetes.io/name: opensearch
+    app.kubernetes.io/part-of: ai-soc-platform
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3
+  resources:
+    requests:
+      storage: 100Gi

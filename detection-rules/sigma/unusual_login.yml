@@ -1,0 +1,79 @@
+title: Unusual Login Pattern Detection
+id: 9b0c2d4e-6a8b-1c9d-5f3e-7b1c4d6e8f0a
+status: stable
+description: |
+  Detects unusual login patterns including logins from impossible travel
+  locations, off-hours access, first-time source IPs, and access to
+  sensitive systems from new locations.
+author: AI SOC Platform
+date: 2024/01/15
+modified: 2024/06/01
+tags:
+  - attack.initial_access
+  - attack.t1078
+  - attack.credential_access
+  - authentication
+logsource:
+  category: authentication
+  product: any
+detection:
+  off_hours_login:
+    event_type: authentication
+    status: success
+    event_id: 1
+    - timestamp|time: "T00:00:00/T05:00:00"
+  new_source_ip:
+    event_type: authentication
+    status: success
+    event_id: 1
+    src_ip|is_public: true
+    src_ip not in known_source_ips
+  geo_impossible_travel:
+    event_type: authentication
+    status: success
+    event_id: 1
+    src_country|is_public: true
+    src_ip not in known_source_ips
+    timestamp within 30 minutes of previous login from different_country
+  after_hours_vpn:
+    event_type: authentication
+    status: success
+    service: vpn
+    - timestamp|time: "T22:00:00/T06:00:00"
+    src_ip|is_public: true
+  weekend_access:
+    event_type: authentication
+    status: success
+    event_id: 1
+    day_of_week:
+      - Saturday
+      - Sunday
+    username not in service_accounts
+  successive_failures_then_success:
+    event_type: authentication
+    status: failed
+    event_id: 14
+  timeframe: 15m
+  condition: >
+    (off_hours_login and not by user | count(src_ip) by user > 1) or
+    (new_source_ip) or
+    (geo_impossible_travel) or
+    (after_hours_vpn) or
+    (weekend_access) or
+    (successive_failures_then_success | count(status) by src_ip >= 3 and status: success)
+  fields:
+    - user
+    - src_ip
+    - dest_ip
+    - dest_port
+    - service
+    - timestamp
+    - src_country
+    - src_city
+    - event_id
+falsepositives:
+  - Legitimate business travel
+  - Remote workers in different time zones
+  - VPN connections during off-hours for on-call staff
+  - Service accounts with legitimate off-hours access
+level: medium

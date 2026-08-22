@@ -1,0 +1,8 @@
+aiokafka==0.10.0
+structlog==24.2.0
+aiosmtplib==3.0.1
+httpx==0.27.0
+pydantic==2.7.4
+pydantic-settings==2.3.4
+tenacity==8.4.1
+prometheus-client==0.20.0

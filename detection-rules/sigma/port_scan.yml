@@ -1,0 +1,57 @@
+title: Port Scanning Activity Detected
+id: 3b4d6e8f-0a2b-5c3d-9f7a-1b5c8d0e2f4a
+status: stable
+description: |
+  Detects network port scanning activity by identifying connections to multiple
+  ports on a single host within a short time window. This may indicate
+  reconnaissance activity preceding an attack. Triggers when a source IP connects
+  to 15+ different ports on a single destination within 60 seconds.
+author: AI SOC Platform
+date: 2024/01/15
+modified: 2024/06/01
+tags:
+  - attack.discovery
+  - attack.t1046
+  - reconnaissance
+  - network
+logsource:
+  category: firewall
+  product: any
+detection:
+  selection:
+    event_type: network_connection
+    action: allowed
+  timeframe: 60s
+  condition: selection | count(dest_port) by src_ip >= 15
+  filter_internal:
+    src_ip|startswith:
+      - "10."
+      - "172.16."
+      - "172.17."
+      - "172.18."
+      - "172.19."
+      - "172.20."
+      - "172.21."
+      - "172.22."
+      - "172.23."
+      - "172.24."
+      - "172.25."
+      - "172.26."
+      - "172.27."
+      - "172.28."
+      - "172.29."
+      - "172.30."
+      - "172.31."
+      - "192.168."
+  condition: selection and not filter_internal | count(dest_port) by src_ip >= 15
+  fields:
+    - src_ip
+    - dest_ip
+    - dest_port
+    - protocol
+    - bytes_sent
+falsepositives:
+  - Legitimate network scanning tools used by IT security teams
+  - Vulnerability scanners with proper authorization
+  - Load balancer health checks across multiple ports
+level: medium

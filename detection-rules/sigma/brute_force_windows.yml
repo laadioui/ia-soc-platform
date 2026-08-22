@@ -1,0 +1,58 @@
+title: Windows Brute Force Detection
+id: a0b1c2d3-7e9f-2a0b-6c4d-8e2a5b7c9d1e
+status: stable
+description: |
+  Detects brute force attacks against Windows systems by monitoring EventID 4625
+  (failed logon) and EventID 4771/4776 (Kerberos/NTLM pre-auth failures).
+  Triggers when 10+ failures occur from a single source within 5 minutes.
+author: AI SOC Platform
+date: 2024/01/15
+modified: 2024/06/01
+tags:
+  - attack.credential_access
+  - attack.t1110
+  - brute_force
+  - windows
+logsource:
+  product: windows
+  service: security
+detection:
+  failed_logon:
+    EventID: 4625
+    LogonType:
+      - 2
+      - 3
+      - 7
+      - 10
+  kerberos_failure:
+    EventID: 4771
+    PreAuthenticationType: 16
+    ErrorCode: 18
+  ntlm_failure:
+    EventID: 4776
+    Error_Code: "0xC000006A"
+  account_lockout:
+    EventID: 4740
+  timeframe: 5m
+  condition: >
+    (failed_logon | count(TargetUserName) by TargetDomainName,IpAddress >= 10) or
+    (kerberos_failure | count(TargetUserName) by IpAddress >= 10) or
+    (ntlm_failure | count(TargetUserName) by IpAddress >= 10) or
+    (account_lockout)
+  fields:
+    - TargetUserName
+    - TargetDomainName
+    - IpAddress
+    - IpPort
+    - WorkstationName
+    - LogonType
+    - FailureReason
+    - SubStatus
+    - Status
+    - ProcessName
+falsepositives:
+  - Service accounts with frequent password changes
+  - Users with expired passwords
+  - Citrix or RDP farm with load balancing
+  - Audit scans from internal security tools
+level: high

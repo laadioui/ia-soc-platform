@@ -1,0 +1,40 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: "soc-backend"
+    static_configs:
+      - targets: ["backend:8000"]
+    metrics_path: "/metrics"
+
+  - job_name: "soc-detection"
+    static_configs:
+      - targets: ["detection-engine:8001"]
+    metrics_path: "/metrics"
+
+  - job_name: "soc-correlation"
+    static_configs:
+      - targets: ["correlation-engine:8003"]
+    metrics_path: "/metrics"
+
+  - job_name: "soc-ai"
+    static_configs:
+      - targets: ["ai-engine:8002"]
+    metrics_path: "/metrics"
+
+  - job_name: "postgres"
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+
+  - job_name: "redis"
+    static_configs:
+      - targets: ["redis-exporter:9121"]
+
+  - job_name: "kafka"
+    static_configs:
+      - targets: ["kafka:9308"]

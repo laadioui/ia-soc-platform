@@ -1,0 +1,282 @@
+global:
+  namespace: ai-soc
+  imagePullPolicy: Always
+
+namespace:
+  create: true
+  name: ai-soc
+
+postgres:
+  enabled: true
+  image:
+    repository: postgres
+    tag: "16-alpine"
+    pullPolicy: IfNotPresent
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 5432
+  persistence:
+    enabled: true
+    storageClass: gp3
+    size: 50Gi
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 2
+      memory: 4Gi
+
+redis:
+  enabled: true
+  image:
+    repository: redis
+    tag: "7-alpine"
+    pullPolicy: IfNotPresent
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 6379
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1
+      memory: 1Gi
+
+opensearch:
+  enabled: true
+  image:
+    repository: opensearchproject/opensearch
+    tag: "2.12.0"
+    pullPolicy: IfNotPresent
+  replicas: 2
+  service:
+    type: ClusterIP
+    ports:
+      http: 9200
+      transport: 9300
+  persistence:
+    enabled: true
+    storageClass: gp3
+    size: 100Gi
+  javaOpts: "-Xms1g -Xmx1g"
+  resources:
+    requests:
+      cpu: "1"
+      memory: 2Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+
+kafka:
+  enabled: true
+  image:
+    repository: confluentinc/cp-kafka
+    tag: "7.6.0"
+    pullPolicy: IfNotPresent
+  replicas: 1
+  service:
+    type: ClusterIP
+    ports:
+      internal: 9092
+      external: 29092
+  zookeeper:
+    image:
+      repository: confluentinc/cp-zookeeper
+      tag: "7.6.0"
+    replicas: 1
+    service:
+      type: ClusterIP
+      port: 2181
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
+keycloak:
+  enabled: true
+  image:
+    repository: quay.io/keycloak/keycloak
+    tag: "24.0"
+    pullPolicy: IfNotPresent
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 8080
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
+backend:
+  enabled: true
+  image:
+    repository: ai-soc-platform/backend
+    tag: "latest"
+    pullPolicy: Always
+  replicas: 2
+  service:
+    type: ClusterIP
+    port: 8000
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
+detection:
+  enabled: true
+  image:
+    repository: ai-soc-platform/detection
+    tag: "latest"
+    pullPolicy: Always
+  replicas: 2
+  service:
+    type: ClusterIP
+    port: 8000
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+
+correlation:
+  enabled: true
+  image:
+    repository: ai-soc-platform/correlation
+    tag: "latest"
+    pullPolicy: Always
+  replicas: 2
+  service:
+    type: ClusterIP
+    port: 8000
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+
+aiEngine:
+  enabled: true
+  image:
+    repository: ai-soc-platform/ai-engine
+    tag: "latest"
+    pullPolicy: Always
+  replicas: 2
+  service:
+    type: ClusterIP
+    port: 8000
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  resources:
+    requests:
+      cpu: "1"
+      memory: 2Gi
+    limits:
+      cpu: "4"
+      memory: 8Gi
+
+frontend:
+  enabled: true
+  image:
+    repository: ai-soc-platform/frontend
+    tag: "latest"
+    pullPolicy: Always
+  replicas: 2
+  service:
+    type: ClusterIP
+    port: 3000
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - host: aisoc.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: ai-soc-tls
+        hosts:
+          - aisoc.example.com
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+networkPolicies:
+  enabled: true
+
+config:
+  ENVIRONMENT: production
+  LOG_LEVEL: INFO
+  APP_NAME: ai-soc-platform
+  POSTGRES_HOST: postgres.ai-soc.svc.cluster.local
+  POSTGRES_PORT: "5432"
+  POSTGRES_USER: aisoc
+  POSTGRES_DB: aisoc
+  REDIS_HOST: redis.ai-soc.svc.cluster.local
+  REDIS_PORT: "6379"
+  KAFKA_BOOTSTRAP_SERVERS: kafka.ai-soc.svc.cluster.local:9092
+  KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+  OPENSEARCH_HOST: opensearch.ai-soc.svc.cluster.local
+  OPENSEARCH_PORT: "9200"
+  KEYCLOAK_URL: http://keycloak.ai-soc.svc.cluster.local:8080/auth
+  KEYCLOAK_REALM: ai-soc
+  KEYCLOAK_CLIENT_ID: ai-soc-platform
+  JWT_ALGORITHM: RS256
+  JWT_ACCESS_TOKEN_EXPIRE_MINUTES: "15"
+  JWT_REFRESH_TOKEN_EXPIRE_DAYS: "7"
+  API_GATEWAY_HOST: "0.0.0.0"
+  API_GATEWAY_PORT: "8000"
+  CORS_ORIGINS: https://aisoc.example.com
+  LLM_PROVIDER: ollama
+  OLLAMA_MODEL: llama3.1:8b
+  EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2
+  EMBEDDING_DIMENSIONS: "384"
+  SOAR_SIMULATION_MODE: "false"
+  SOAR_APPROVAL_REQUIRED: "true"
+
+secrets:
+  postgresPassword: "CHANGE_ME"
+  redisPassword: "CHANGE_ME"
+  opensearchPassword: "CHANGE_ME"
+  keycloakAdminPassword: "CHANGE_ME"
+  jwtSecretKey: "CHANGE_ME_at_least_32_chars"
+  keycloakClientSecret: "CHANGE_ME"

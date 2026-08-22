@@ -1,0 +1,113 @@
+title: Suspicious PowerShell Activity
+id: 8a9b1c3d-5f7a-0b8c-4e2d-6a0b3c5d7e9f
+status: stable
+description: |
+  Detects suspicious PowerShell commands and scripts indicating potential
+  compromise including encoded commands, download cradles, fileless malware
+  techniques, and AMSI bypass attempts.
+author: AI SOC Platform
+date: 2024/01/15
+modified: 2024/06/01
+tags:
+  - attack.execution
+  - attack.t1059.001
+  - attack.defense_evasion
+  - attack.t1027
+  - attack.t1562
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  encoded_command:
+    event_type: process_creation
+    image|endswith: "\powershell.exe"
+    command_line|contains:
+      - "-enc"
+      - "-EncodedCommand"
+      - "-e "
+      - "/e "
+      - "-en "
+  download_cradle:
+    event_type: process_creation
+    image|endswith: "\powershell.exe"
+    command_line|contains:
+      - "Invoke-WebRequest"
+      - "Invoke-RestMethod"
+      - "DownloadString"
+      - "DownloadFile"
+      - "Net.WebClient"
+      - "Start-BitsTransfer"
+      - "certutil -urlcache"
+      - "bitsadmin /transfer"
+  amsi_bypass:
+    event_type: process_creation
+    image|endswith: "\powershell.exe"
+    command_line|contains:
+      - "AmsiUtils"
+      - "amsiInitFailed"
+      - "[Ref].Assembly.GetType"
+      - "SetValue($null,$true)"
+      - "Disable-WindowsOptionalFeature"
+      - "Set-MpPreference -DisableRealtimeMonitoring"
+  obfuscation_techniques:
+    event_type: process_creation
+    image|endswith: "\powershell.exe"
+    command_line|contains:
+      - "-join"
+      - "[char]"
+      - "-replace"
+      - "`"
+      - "$env:TEMP"
+      - "$env:TMP"
+      - "FromBase64String"
+      - "IEX("
+      - "IEX ("
+      - "Invoke-Expression"
+  fileless_execution:
+    event_type: process_creation
+    image|endswith: "\powershell.exe"
+    command_line|contains:
+      - "FromBase64"
+      - "Add-Type"
+      - "Marshal::"
+      - "VirtualAlloc"
+      - "CreateThread"
+      - "RtlMoveMemory"
+  process_injection:
+    event_type: process_creation
+    image|endswith: "\powershell.exe"
+    command_line|contains:
+      - "NtCreateThreadEx"
+      - "NtWriteVirtualMemory"
+      - "WriteProcessMemory"
+      - "OpenProcess"
+      - "CreateRemoteThread"
+  powershell_as_service:
+    event_type: process_creation
+    image|endswith: "\powershell.exe"
+    parent_process_name:
+      - "services.exe"
+      - "svchost.exe"
+  condition: >
+    encoded_command or
+    download_cradle or
+    amsi_bypass or
+    obfuscation_techniques or
+    fileless_execution or
+    process_injection or
+    powershell_as_service
+  fields:
+    - user
+    - computer
+    - command_line
+    - parent_process_name
+    - parent_image
+    - process_id
+    - parent_process_id
+    - src_ip
+falsepositives:
+  - Legitimate administrative scripts using encoded commands
+  - Chocolatey or Winget package managers
+  - SCCM/Intune deployment scripts
+  - PowerShell DSC configurations
+level: high

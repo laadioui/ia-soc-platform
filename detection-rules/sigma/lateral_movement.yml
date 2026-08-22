@@ -1,0 +1,97 @@
+title: Lateral Movement Detection
+id: 5d6f8a0b-2c4d-7e5f-1b9a-3d7e0f2a4b6c
+status: stable
+description: |
+  Detects potential lateral movement through the network via SMB/RPC remote
+  execution, SSH hopping, WMI lateral movement, or PsExec-like execution.
+  Monitors for indicators of attackers moving between systems within the
+  internal network after initial compromise.
+author: AI SOC Platform
+date: 2024/01/15
+modified: 2024/06/01
+tags:
+  - attack.lateral_movement
+  - attack.t1021
+  - attack.t1570
+  - attack.t1569
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  smb_remote_execution:
+    event_type: process_creation
+    image|endswith:
+      - "\PSEXEC.exe"
+      - "\PSEXESVC.exe"
+      - "\cmd.exe"
+    command_line|contains:
+      - "\\\\"
+      - "PSEXESVC"
+      - "-accepteula"
+      - "\\\\IPC$"
+  wmi_lateral:
+    event_type: process_creation
+    image|endswith:
+      - "\wmic.exe"
+      - "\WmiPrvSE.exe"
+    command_line|contains:
+      - "Process call create"
+      - "cmd.exe /c"
+      - "/node:"
+  powershell_remote:
+    event_type: process_creation
+    image|endswith: "\powershell.exe"
+    command_line|contains:
+      - "Invoke-Command"
+      - "Enter-PSSession"
+      - "New-PSSession"
+      - "-ComputerName"
+      - "-SessionOption"
+      - "Copy-Item -ToSession"
+  ssh_lateral:
+    event_type: process_creation
+    exe|endswith: /ssh
+    command_line|contains:
+      - "-o StrictHostKeyChecking=no"
+      - "-o UserKnownHostsFile=/dev/null"
+      - "-o ProxyCommand"
+    event_type: authentication
+    service: sshd
+    status: success
+    event_id: 1
+  dcom_execution:
+    event_type: process_creation
+    parent_process_name|contains:
+      - "dcom"
+      - "WmiPrvSE"
+    image|endswith:
+      - "\msbuild.exe"
+      - "\mshta.exe"
+      - "\regsvr32.exe"
+      - "\rundll32.exe"
+    parent_command_line|contains:
+      - "\\\\127.0.0.1"
+      - "\\\\localhost"
+      - "\\\\192.168"
+      - "\\\\10."
+      - "\\\\172."
+  pass_the_hash:
+    event_type: process_creation
+    image|endswith: "\mimikatz.exe"
+    command_line|contains:
+      - "sekurlsa::pth"
+      - "kerberos::ptt"
+  condition: smb_remote_execution or wmi_lateral or powershell_remote or ssh_lateral or dcom_execution or pass_the_hash
+  fields:
+    - user
+    - src_ip
+    - dest_ip
+    - image
+    - command_line
+    - parent_process_name
+falsepositives:
+  - Legitimate remote administration tools used by IT staff
+  - SCCM or Intune managing endpoints
+  - Ansible or Puppet remote execution
+  - Ansible AWX or Tower running playbooks
+level: high

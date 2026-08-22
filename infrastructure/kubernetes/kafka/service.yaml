@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: zookeeper
+  namespace: ai-soc
+  labels:
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/part-of: ai-soc-platform
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: zookeeper
+  ports:
+    - name: client
+      port: 2181
+      targetPort: client
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  namespace: ai-soc
+  labels:
+    app.kubernetes.io/name: kafka
+    app.kubernetes.io/part-of: ai-soc-platform
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: kafka
+  ports:
+    - name: internal
+      port: 9092
+      targetPort: internal
+      protocol: TCP
+    - name: external
+      port: 29092
+      targetPort: external
+      protocol: TCP

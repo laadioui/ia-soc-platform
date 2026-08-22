@@ -1,0 +1,96 @@
+title: Data Exfiltration Detection
+id: 7f8a0b2c-4e6f-9a7b-3d1c-5f9a2b4c6d8e
+status: stable
+description: |
+  Detects potential data exfiltration through large data transfers, use of
+  encryption before transmission, DNS tunneling for data transfer, or
+  access to sensitive data repositories followed by unusual outbound
+  traffic patterns.
+author: AI SOC Platform
+date: 2024/01/15
+modified: 2024/06/01
+tags:
+  - attack.exfiltration
+  - attack.t1048
+  - attack.t1041
+  - attack.t1567
+logsource:
+  category: proxy
+  product: any
+detection:
+  large_upload:
+    event_type: http_request
+    http_method: POST
+    bytes_sent|gte: 10485760
+    dst|is_public: true
+  dns_exfiltration:
+    event_type: dns_query
+    query|re: "^[a-zA-Z0-9]{30,63}\."
+    query|endswith:
+      - ".top"
+      - ".xyz"
+      - ".tk"
+      - ".ml"
+      - ".ga"
+      - ".cf"
+      - ".gq"
+      - ".io"
+  cloud_upload_suspicious:
+    event_type: http_request
+    http_method: POST
+    uri_path|contains:
+      - "/upload"
+      - "/files"
+      - "/api/upload"
+      - "/drive/v3"
+    dst|contains:
+      - "mega.nz"
+      - "anonfiles.com"
+      - "gofile.io"
+      - "transfer.sh"
+      - "file.io"
+      - "dropbox.com"
+  unusual_data_volume:
+    event_type: network_connection
+    dst|is_public: true
+    bytes_sent|gte: 104857600
+  archive_activity:
+    event_type: process_creation
+    image|endswith:
+      - "\7z.exe"
+      - "\7za.exe"
+      - "\rar.exe"
+      - "\zip.exe"
+      - "\tar"
+      - "\gzip"
+    command_line|contains:
+      - "-p"
+      - "password"
+      - "encrypted"
+  large_dns_response:
+    event_type: dns_response
+    answers|gte: 50
+  condition: >
+    large_upload or
+    dns_exfiltration or
+    cloud_upload_suspicious or
+    (unusual_data_volume and not by src_ip | avg(bytes_sent) > 52428800) or
+    (archive_activity and large_upload) or
+    large_dns_response
+  fields:
+    - src_ip
+    - dst
+    - dest_port
+    - bytes_sent
+    - bytes_received
+    - http_method
+    - uri_path
+    - query
+    - command_line
+    - image
+falsepositives:
+  - Legitimate cloud backup operations
+  - Software updates and patches
+  - Normal web browsing with large downloads
+  - Database replication to disaster recovery sites
+level: high

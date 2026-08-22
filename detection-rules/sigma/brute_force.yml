@@ -1,0 +1,36 @@
+title: Brute Force Authentication Detection
+id: 2a3c5e7f-9b1a-4d2c-8e6f-0a4b7c9d1e3f
+status: stable
+description: |
+  Detects brute force authentication attempts by monitoring multiple failed login
+  attempts from a single source within a defined time window. This rule applies
+  to Linux and Windows authentication logs. A threshold of 5+ failed attempts
+  in a 5-minute window triggers an alert.
+author: AI SOC Platform
+date: 2024/01/15
+modified: 2024/06/01
+tags:
+  - attack.credential_access
+  - attack.t1110
+  - brute_force
+  - authentication
+logsource:
+  category: authentication
+  product: linux
+detection:
+  selection:
+    event_type: authentication
+    status: failed
+  timeframe: 5m
+  condition: selection | count(src_ip) by src_ip >= 5
+  fields:
+    - src_ip
+    - username
+    - dest_ip
+    - dest_port
+    - service
+falsepositives:
+  - Legitimate users who forget passwords
+  - Service account credential rotations
+  - Automated testing systems
+level: high

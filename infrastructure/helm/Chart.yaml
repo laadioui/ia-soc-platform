@@ -1,0 +1,19 @@
+apiVersion: v2
+name: ai-soc-platform
+description: Helm chart for the AI SOC Platform
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - ai
+  - soc
+  - security
+  - operations
+  - threat-detection
+  - incident-response
+maintainers:
+  - name: AI SOC Team
+    email: team@aisoc.example.com
+home: https://github.com/ai-soc-platform/ai-soc-platform
+sources:
+  - https://github.com/ai-soc-platform/ai-soc-platform

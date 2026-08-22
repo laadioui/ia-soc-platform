@@ -1,0 +1,90 @@
+title: Linux Failed Authentication Attempts
+id: b1c2d3e4-8f0a-3b1c-7d5e-9f3b6c8d0e2f
+status: stable
+description: |
+  Detects failed authentication attempts on Linux systems through PAM,
+  SSH, and system authentication logs. Monitors /var/log/auth.log patterns
+  indicating brute force or credential stuffing attacks against Linux hosts.
+author: AI SOC Platform
+date: 2024/01/15
+modified: 2024/06/01
+tags:
+  - attack.credential_access
+  - attack.t1110
+  - brute_force
+  - linux
+  - authentication
+logsource:
+  product: linux
+  service: auth
+detection:
+  ssh_failed:
+    event_type: sshd_auth
+    status: failed
+  ssh_invalid_user:
+    event_type: sshd_auth
+    message|contains:
+      - "Invalid user"
+      - "invalid user"
+      - "authentication failure"
+  pam_failure:
+    event_type: pam
+    status: failed
+    message|contains:
+      - "authentication failure"
+      - "Permission denied"
+      - "Could not open session"
+  sudo_failure:
+    event_type: sudo
+    status: failed
+    message|contains:
+      - "not in sudoers"
+      - "incorrect password"
+      - "user not allowed"
+  login_failed:
+    event_type: login
+    status: failed
+  su_failure:
+    event_type: su
+    status: failed
+    message|contains:
+      - "su: failed"
+      - "permission denied"
+  bad_password:
+    event_type: process_creation
+    exe|endswith: /passwd
+    command_line|contains:
+      - "password"
+      - "--delete"
+  failed_mount:
+    event_type: mount
+    status: failed
+    user|contains:
+      - "user"
+      - "operator"
+  timeframe: 5m
+  condition: >
+    (ssh_failed | count(src_ip) by src_ip >= 5) or
+    (ssh_invalid_user | count(src_ip) by src_ip >= 5) or
+    (pam_failure | count(src_ip) by src_ip >= 5) or
+    (sudo_failure | count(user) by user >= 5) or
+    (login_failed | count(src_ip) by src_ip >= 5) or
+    (su_failure | count(user) by user >= 5) or
+    bad_password or
+    failed_mount
+  fields:
+    - src_ip
+    - user
+    - dest_ip
+    - dest_port
+    - service
+    - message
+    - process_name
+    - command_line
+falsepositives:
+  - Users with expired passwords
+  - Service accounts with stale credentials
+  - Misconfigured LDAP or NIS
+  - Legitimate sudo usage by authorized admins
+  - System monitoring scripts running as non-root
+level: high

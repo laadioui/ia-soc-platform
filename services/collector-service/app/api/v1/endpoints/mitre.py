@@ -1,5 +1,3 @@
-import uuid
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,9 +24,7 @@ async def list_mitre_techniques(
 
 @router.get("/{technique_id}", response_model=MITRETechniqueResponse)
 async def get_mitre_technique(technique_id: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(MITRETechnique).where(MITRETechnique.technique_id == technique_id)
-    )
+    result = await db.execute(select(MITRETechnique).where(MITRETechnique.technique_id == technique_id))
     technique = result.scalar_one_or_none()
     if not technique:
         raise HTTPException(status_code=404, detail="MITRE technique not found")
@@ -37,8 +33,6 @@ async def get_mitre_technique(technique_id: str, db: AsyncSession = Depends(get_
 
 @router.get("/tactics/list")
 async def list_tactics(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(MITRETechnique.tactic).distinct().order_by(MITRETechnique.tactic)
-    )
+    result = await db.execute(select(MITRETechnique.tactic).distinct().order_by(MITRETechnique.tactic))
     tactics = [row[0] for row in result.all()]
     return {"tactics": tactics}

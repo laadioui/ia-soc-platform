@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -171,7 +171,7 @@ class OpenSearchClient:
         full_index = f"{DEFAULT_INDEX_PREFIX}-{index}"
 
         if "timestamp" not in document:
-            document["timestamp"] = datetime.now(timezone.utc).isoformat()
+            document["timestamp"] = datetime.now(UTC).isoformat()
 
         try:
             result = await client.index(
@@ -194,7 +194,7 @@ class OpenSearchClient:
         client = self._get_client()
         full_index = f"{DEFAULT_INDEX_PREFIX}-{index}"
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         for doc in documents:
             if "timestamp" not in doc:
                 doc["timestamp"] = now

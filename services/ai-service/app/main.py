@@ -7,8 +7,8 @@ from typing import Any
 import structlog
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
 from prometheus_client import make_asgi_app
+from pydantic import BaseModel, Field
 
 from app.config import settings
 
@@ -259,6 +259,10 @@ async def llm_health():
 
         generator = LLMGenerator()
         is_healthy = await generator.health_check()
-        return {"status": "healthy" if is_healthy else "unhealthy", "provider": "ollama", "model": settings.OLLAMA_MODEL}
+        return {
+            "status": "healthy" if is_healthy else "unhealthy",
+            "provider": "ollama",
+            "model": settings.OLLAMA_MODEL,
+        }
     except Exception as exc:
         return {"status": "unhealthy", "error": str(exc)}

@@ -8,7 +8,7 @@ from typing import Any
 
 import orjson
 import structlog
-from confluent_kafka import Consumer, Producer, KafkaError, KafkaException
+from confluent_kafka import Consumer, KafkaError, KafkaException, Producer
 from prometheus_client import Counter, Gauge, Histogram, start_http_server
 
 from detection.config import settings
@@ -191,7 +191,9 @@ def run() -> None:
                     user=h.get("user", ""),
                     event_count=h.get("event_count", 1),
                     confidence=h.get("confidence", 0.5),
-                    metadata={k: v for k, v in h.items() if k not in ("rule_id", "rule_name", "severity", "description")},
+                    metadata={
+                        k: v for k, v in h.items() if k not in ("rule_id", "rule_name", "severity", "description")
+                    },
                 )
                 for h in sigma_hits
             )

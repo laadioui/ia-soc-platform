@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
@@ -30,7 +30,7 @@ def generate_event_id() -> str:
 async def ingest_event(event_data: EventCreate, db: AsyncSession = Depends(get_db)):
     event = SecurityEvent(
         event_id=generate_event_id(),
-        timestamp=event_data.timestamp or datetime.now(timezone.utc),
+        timestamp=event_data.timestamp or datetime.now(UTC),
         source=event_data.source,
         source_type=SOURCE_TYPE_MAP.get(event_data.source_type, event_data.source_type),
         category=event_data.category,
@@ -57,7 +57,7 @@ async def ingest_events_bulk(bulk_data: EventBulkCreate, db: AsyncSession = Depe
     for event_data in bulk_data.events:
         event = SecurityEvent(
             event_id=generate_event_id(),
-            timestamp=event_data.timestamp or datetime.now(timezone.utc),
+            timestamp=event_data.timestamp or datetime.now(UTC),
             source=event_data.source,
             source_type=SOURCE_TYPE_MAP.get(event_data.source_type, event_data.source_type),
             category=event_data.category,

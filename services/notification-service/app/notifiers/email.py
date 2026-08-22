@@ -47,9 +47,7 @@ class EmailNotifier:
         thresh = SEVERITY_ORDER.get(threshold.lower(), 2)
         return sev <= thresh
 
-    def _build_incident_email(
-        self, payload: dict[str, Any]
-    ) -> tuple[str, str, str]:
+    def _build_incident_email(self, payload: dict[str, Any]) -> tuple[str, str, str]:
         incident_id = payload.get("incident_id", payload.get("id", "N/A"))
         title = payload.get("title", "Security Incident")
         severity = payload.get("severity", "unknown").upper()
@@ -79,7 +77,7 @@ class EmailNotifier:
                     </tr>
                     <tr>
                         <td style="padding: 8px; font-weight: bold;">Severity:</td>
-                        <td style="padding: 8px; color: {'red' if severity in ('CRITICAL', 'HIGH') else 'orange' if severity == 'MEDIUM' else 'green'};">{severity}</td>
+                        <td style="padding: 8px; color: {"red" if severity in ("CRITICAL", "HIGH") else "orange" if severity == "MEDIUM" else "green"};">{severity}</td>
                     </tr>
                     <tr style="background-color: #f9f9f9;">
                         <td style="padding: 8px; font-weight: bold;">Status:</td>

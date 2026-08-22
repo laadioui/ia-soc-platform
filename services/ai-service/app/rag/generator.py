@@ -128,9 +128,7 @@ class LLMGenerator:
     ) -> dict[str, Any]:
         event_str = json.dumps(event_data, indent=2, default=str)
 
-        similar_context = await retriever.get_context_for_generation(
-            query=event_str, top_k=3
-        )
+        similar_context = await retriever.get_context_for_generation(query=event_str, top_k=3)
 
         prompt = f"""Analyze the following security event and provide a detailed security assessment.
 

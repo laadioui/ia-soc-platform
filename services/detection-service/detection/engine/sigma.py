@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from pathlib import Path
 from typing import Any
 
@@ -60,9 +59,7 @@ class SigmaEvaluator:
             return
 
         count = 0
-        for path in sorted(self._rules_path.rglob("*.yaml")) | sorted(
-            self._rules_path.rglob("*.yml")
-        ):
+        for path in sorted(self._rules_path.rglob("*.yaml")) | sorted(self._rules_path.rglob("*.yml")):
             try:
                 raw = yaml.safe_load(path.read_text(encoding="utf-8"))
                 if not isinstance(raw, dict):

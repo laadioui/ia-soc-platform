@@ -28,12 +28,12 @@ async def analyze_security_query(
 
     context_parts = []
     if request.incident_id:
-        result = await db.execute(
-            select(Incident).where(Incident.incident_id == request.incident_id)
-        )
+        result = await db.execute(select(Incident).where(Incident.incident_id == request.incident_id))
         incident = result.scalar_one_or_none()
         if incident:
-            context_parts.append(f"Incident: {incident.title} | Severity: {incident.severity} | Status: {incident.status}")
+            context_parts.append(
+                f"Incident: {incident.title} | Severity: {incident.severity} | Status: {incident.status}"
+            )
             if incident.description:
                 context_parts.append(f"Description: {incident.description}")
 
@@ -88,9 +88,7 @@ async def summarize_incident(
     request: AISummarizeRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(Incident).where(Incident.incident_id == request.incident_id)
-    )
+    result = await db.execute(select(Incident).where(Incident.incident_id == request.incident_id))
     incident = result.scalar_one_or_none()
 
     if not incident:
@@ -146,8 +144,8 @@ async def analyze_incident(
 
     return AIIncidentAnalysis(
         overview=f"Automated analysis of incident {incident.incident_id}: {incident.title}. "
-                f"The incident has been classified as {incident.severity} severity with "
-                f"a risk score of {incident.risk_score}/100.",
+        f"The incident has been classified as {incident.severity} severity with "
+        f"a risk score of {incident.risk_score}/100.",
         attack_chain=[
             "Initial access via authentication event",
             "Possible credential compromise",

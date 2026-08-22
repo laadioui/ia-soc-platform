@@ -4,7 +4,7 @@ import time
 from typing import Any
 
 import structlog
-from redis.asyncio import Redis, ConnectionPool
+from redis.asyncio import ConnectionPool, Redis
 from tenacity import (
     retry,
     retry_if_exception_type,

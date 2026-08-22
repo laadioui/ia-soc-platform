@@ -1,11 +1,17 @@
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Float, ForeignKey, Index, String, Text, Uuid, JSON, func
+from sqlalchemy import JSON, DateTime, Float, ForeignKey, Index, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 from app.models.base import TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.ai_analysis import AIAnalysis
+    from app.models.mitre import IncidentMITREMapping
+    from app.models.response_action import ResponseAction
 
 
 class Incident(TimestampMixin, Base):
@@ -34,11 +40,17 @@ class Incident(TimestampMixin, Base):
     metadata_json: Mapped[dict | None] = mapped_column(JSON)
 
     assignee = relationship("User", foreign_keys=[assigned_to], back_populates="assigned_incidents", lazy="selectin")
-    events: Mapped[list["IncidentEvent"]] = relationship(back_populates="incident", cascade="all, delete-orphan", lazy="selectin")
-    iocs: Mapped[list["IncidentIOC"]] = relationship(back_populates="incident", cascade="all, delete-orphan", lazy="selectin")
+    events: Mapped[list["IncidentEvent"]] = relationship(
+        back_populates="incident", cascade="all, delete-orphan", lazy="selectin"
+    )
+    iocs: Mapped[list["IncidentIOC"]] = relationship(
+        back_populates="incident", cascade="all, delete-orphan", lazy="selectin"
+    )
     mitre_mappings: Mapped[list["IncidentMITREMapping"]] = relationship(back_populates="incident", lazy="selectin")
     ai_analyses: Mapped[list["AIAnalysis"]] = relationship("AIAnalysis", back_populates="incident", lazy="selectin")
-    response_actions: Mapped[list["ResponseAction"]] = relationship("ResponseAction", back_populates="incident", lazy="selectin")
+    response_actions: Mapped[list["ResponseAction"]] = relationship(
+        "ResponseAction", back_populates="incident", lazy="selectin"
+    )
 
 
 class IncidentEvent(TimestampMixin, Base):

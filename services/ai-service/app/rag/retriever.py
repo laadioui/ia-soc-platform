@@ -45,9 +45,7 @@ class Retriever:
             max_overflow=5,
             pool_pre_ping=True,
         )
-        self._session_factory = async_sessionmaker(
-            self._engine, class_=AsyncSession, expire_on_commit=False
-        )
+        self._session_factory = async_sessionmaker(self._engine, class_=AsyncSession, expire_on_commit=False)
         await self._ensure_vector_extension()
         logger.info("retriever_started")
 
@@ -71,9 +69,7 @@ class Retriever:
         factory = self._get_session_factory()
         async with factory() as session:
             await session.execute(
-                text(
-                    f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS embedding vector({settings.EMBEDDING_DIMENSION})"
-                )
+                text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS embedding vector({settings.EMBEDDING_DIMENSION})")
             )
             await session.commit()
 
@@ -196,8 +192,6 @@ class Retriever:
         factory = self._get_session_factory()
         embedding = await embedding_service.encode(query)
         embedding_list = embedding.tolist()
-
-        import json
 
         query_sql = text(
             """

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import structlog
 import numpy as np
+import structlog
 from sentence_transformers import SentenceTransformer
 from tenacity import (
     retry,

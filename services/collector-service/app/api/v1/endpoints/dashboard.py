@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
@@ -13,8 +13,6 @@ from app.schemas.dashboard import (
     DashboardResponse,
     DashboardStats,
     EventsByHour,
-    IncidentsByMachine,
-    MITRETechniqueStats,
     TopAttackerIP,
     TopTargetedUser,
 )
@@ -24,29 +22,27 @@ router = APIRouter()
 
 @router.get("/", response_model=DashboardResponse)
 async def get_dashboard(db: AsyncSession = Depends(get_db)):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     last_24h = now - timedelta(hours=24)
 
     total_events = (await db.execute(select(func.count(SecurityEvent.id)))).scalar() or 0
-    events_24h = (await db.execute(
-        select(func.count(SecurityEvent.id)).where(SecurityEvent.timestamp >= last_24h)
-    )).scalar() or 0
+    events_24h = (
+        await db.execute(select(func.count(SecurityEvent.id)).where(SecurityEvent.timestamp >= last_24h))
+    ).scalar() or 0
 
-    critical_alerts = (await db.execute(
-        select(func.count(Alert.id)).where(
-            Alert.severity == "critical", Alert.status.in_(["new", "acknowledged"])
+    critical_alerts = (
+        await db.execute(
+            select(func.count(Alert.id)).where(Alert.severity == "critical", Alert.status.in_(["new", "acknowledged"]))
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
-    open_incidents = (await db.execute(
-        select(func.count(Incident.id)).where(
-            Incident.status.in_(["new", "investigating"])
-        )
-    )).scalar() or 0
+    open_incidents = (
+        await db.execute(select(func.count(Incident.id)).where(Incident.status.in_(["new", "investigating"])))
+    ).scalar() or 0
 
-    resolved_incidents = (await db.execute(
-        select(func.count(Incident.id)).where(Incident.status == "resolved")
-    )).scalar() or 0
+    resolved_incidents = (
+        await db.execute(select(func.count(Incident.id)).where(Incident.status == "resolved"))
+    ).scalar() or 0
 
     high_risk_ips_result = await db.execute(
         select(SecurityEvent.source_ip, func.count(SecurityEvent.id).label("cnt"))
@@ -62,19 +58,19 @@ async def get_dashboard(db: AsyncSession = Depends(get_db)):
     for i in range(24):
         hour_start = last_24h + timedelta(hours=i)
         hour_end = hour_start + timedelta(hours=1)
-        count = (await db.execute(
-            select(func.count(SecurityEvent.id)).where(
-                SecurityEvent.timestamp >= hour_start,
-                SecurityEvent.timestamp < hour_end,
+        count = (
+            await db.execute(
+                select(func.count(SecurityEvent.id)).where(
+                    SecurityEvent.timestamp >= hour_start,
+                    SecurityEvent.timestamp < hour_end,
+                )
             )
-        )).scalar() or 0
+        ).scalar() or 0
         events_by_hour.append(EventsByHour(hour=hour_start.strftime("%H:00"), count=count))
 
     alerts_by_severity = []
     for sev in ["critical", "high", "medium", "low", "info"]:
-        count = (await db.execute(
-            select(func.count(Alert.id)).where(Alert.severity == sev)
-        )).scalar() or 0
+        count = (await db.execute(select(func.count(Alert.id)).where(Alert.severity == sev))).scalar() or 0
         alerts_by_severity.append(AlertsBySeverity(severity=sev, count=count))
 
     top_ips_result = await db.execute(
@@ -84,9 +80,7 @@ async def get_dashboard(db: AsyncSession = Depends(get_db)):
         .order_by(func.count(SecurityEvent.id).desc())
         .limit(5)
     )
-    top_attacker_ips = [
-        TopAttackerIP(ip=row[0], count=row[1], severity="high") for row in top_ips_result.all()
-    ]
+    top_attacker_ips = [TopAttackerIP(ip=row[0], count=row[1], severity="high") for row in top_ips_result.all()]
 
     top_users_result = await db.execute(
         select(SecurityEvent.user_name, func.count(SecurityEvent.id).label("cnt"))
@@ -95,9 +89,7 @@ async def get_dashboard(db: AsyncSession = Depends(get_db)):
         .order_by(func.count(SecurityEvent.id).desc())
         .limit(5)
     )
-    top_targeted_users = [
-        TopTargetedUser(username=row[0], count=row[1]) for row in top_users_result.all()
-    ]
+    top_targeted_users = [TopTargetedUser(username=row[0], count=row[1]) for row in top_users_result.all()]
 
     return DashboardResponse(
         stats=DashboardStats(

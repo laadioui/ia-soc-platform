@@ -6,29 +6,28 @@ Usage:
     python scripts/seed_data.py              # uses SQLite in-memory for quick test
     python scripts/seed_data.py --postgres   # uses DATABASE_URL from env
 """
+
 from __future__ import annotations
 
 import argparse
 import asyncio
+import os
+import sys
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "services", "collector-service"))
 
 from app.core.database import Base
 from app.core.security import hash_password
-from app.models.user import User
-from app.models.event import SecurityEvent
-from app.models.alert import Alert
-from app.models.incident import Incident
 from app.models.detection_rule import DetectionRule
+from app.models.event import SecurityEvent
 from app.models.ioc import IOC
 from app.models.mitre import MITRETechnique
 from app.models.threat_intelligence import ThreatIntelligence
+from app.models.user import User
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL",
@@ -92,7 +91,11 @@ DETECTION_RULES = [
         "rule_type": "correlation",
         "severity": "critical",
         "category": "lateral_movement",
-        "condition": {"field": "action", "operator": "in", "value": ["smb_connection", "rdp_connection", "ssh_connection"]},
+        "condition": {
+            "field": "action",
+            "operator": "in",
+            "value": ["smb_connection", "rdp_connection", "ssh_connection"],
+        },
         "mitre_technique": "T1021",
         "mitre_tactic": "Lateral Movement",
     },
@@ -110,24 +113,124 @@ DETECTION_RULES = [
 ]
 
 MITRE_TECHNIQUES = [
-    {"technique_id": "T1110", "name": "Brute Force", "tactic": "Credential Access", "description": "Adversaries may use brute force techniques to gain access to accounts.", "platforms": ["Linux", "Windows", "macOS"]},
-    {"technique_id": "T1046", "name": "Network Service Discovery", "tactic": "Discovery", "description": "Adversaries may attempt to get a listing of services running on remote hosts.", "platforms": ["Linux", "Windows", "macOS"]},
-    {"technique_id": "T1548", "name": "Abuse Elevation Control Mechanism", "tactic": "Privilege Escalation", "description": "Adversaries may circumvent mechanisms designed to control elevated privileges.", "platforms": ["Linux", "Windows", "macOS"]},
-    {"technique_id": "T1021", "name": "Remote Services", "tactic": "Lateral Movement", "description": "Adversaries may use valid accounts to log into a service for remote access.", "platforms": ["Linux", "Windows"]},
-    {"technique_id": "T1071", "name": "Application Layer Protocol", "tactic": "Command and Control", "description": "Adversaries may communicate using application layer protocols to avoid detection.", "platforms": ["Linux", "Windows", "macOS"]},
-    {"technique_id": "T1059", "name": "Command and Scripting Interpreter", "tactic": "Execution", "description": "Adversaries may abuse command and script interpreters to execute commands.", "platforms": ["Linux", "Windows", "macOS"]},
-    {"technique_id": "T1053", "name": "Scheduled Task/Job", "tactic": "Execution", "description": "Adversaries may abuse task scheduling functionality to facilitate execution.", "platforms": ["Linux", "Windows"]},
-    {"technique_id": "T1082", "name": "System Information Discovery", "tactic": "Discovery", "description": "An adversary may attempt to get detailed information about the operating system.", "platforms": ["Linux", "Windows", "macOS"]},
-    {"technique_id": "T1005", "name": "Data from Local System", "tactic": "Collection", "description": "Adversaries may search local system sources to find files of interest.", "platforms": ["Linux", "Windows", "macOS"]},
-    {"technique_id": "T1567", "name": "Exfiltration Over Web Service", "tactic": "Exfiltration", "description": "Adversaries may use an existing, legitimate external Web service to exfiltrate data.", "platforms": ["Linux", "Windows", "macOS"]},
+    {
+        "technique_id": "T1110",
+        "name": "Brute Force",
+        "tactic": "Credential Access",
+        "description": "Adversaries may use brute force techniques to gain access to accounts.",
+        "platforms": ["Linux", "Windows", "macOS"],
+    },
+    {
+        "technique_id": "T1046",
+        "name": "Network Service Discovery",
+        "tactic": "Discovery",
+        "description": "Adversaries may attempt to get a listing of services running on remote hosts.",
+        "platforms": ["Linux", "Windows", "macOS"],
+    },
+    {
+        "technique_id": "T1548",
+        "name": "Abuse Elevation Control Mechanism",
+        "tactic": "Privilege Escalation",
+        "description": "Adversaries may circumvent mechanisms designed to control elevated privileges.",
+        "platforms": ["Linux", "Windows", "macOS"],
+    },
+    {
+        "technique_id": "T1021",
+        "name": "Remote Services",
+        "tactic": "Lateral Movement",
+        "description": "Adversaries may use valid accounts to log into a service for remote access.",
+        "platforms": ["Linux", "Windows"],
+    },
+    {
+        "technique_id": "T1071",
+        "name": "Application Layer Protocol",
+        "tactic": "Command and Control",
+        "description": "Adversaries may communicate using application layer protocols to avoid detection.",
+        "platforms": ["Linux", "Windows", "macOS"],
+    },
+    {
+        "technique_id": "T1059",
+        "name": "Command and Scripting Interpreter",
+        "tactic": "Execution",
+        "description": "Adversaries may abuse command and script interpreters to execute commands.",
+        "platforms": ["Linux", "Windows", "macOS"],
+    },
+    {
+        "technique_id": "T1053",
+        "name": "Scheduled Task/Job",
+        "tactic": "Execution",
+        "description": "Adversaries may abuse task scheduling functionality to facilitate execution.",
+        "platforms": ["Linux", "Windows"],
+    },
+    {
+        "technique_id": "T1082",
+        "name": "System Information Discovery",
+        "tactic": "Discovery",
+        "description": "An adversary may attempt to get detailed information about the operating system.",
+        "platforms": ["Linux", "Windows", "macOS"],
+    },
+    {
+        "technique_id": "T1005",
+        "name": "Data from Local System",
+        "tactic": "Collection",
+        "description": "Adversaries may search local system sources to find files of interest.",
+        "platforms": ["Linux", "Windows", "macOS"],
+    },
+    {
+        "technique_id": "T1567",
+        "name": "Exfiltration Over Web Service",
+        "tactic": "Exfiltration",
+        "description": "Adversaries may use an existing, legitimate external Web service to exfiltrate data.",
+        "platforms": ["Linux", "Windows", "macOS"],
+    },
 ]
 
 IOCS = [
-    {"ioc_type": "ip", "ioc_value": "192.168.1.100", "severity": "high", "confidence": 0.85, "description": "Known brute force source IP", "source": "internal-siem", "threat_type": "brute_force"},
-    {"ioc_type": "domain", "ioc_value": "evil-c2.example.com", "severity": "critical", "confidence": 0.95, "description": "C2 domain observed in multiple incidents", "source": "threat-feed", "threat_type": "c2"},
-    {"ioc_type": "hash", "ioc_value": "d41d8cd98f00b204e9800998ecf8427e", "severity": "critical", "confidence": 0.90, "description": "SHA256 of known malware sample", "source": "virustotal", "threat_type": "malware"},
-    {"ioc_type": "url", "ioc_value": "https://phishing.example.com/login", "severity": "high", "confidence": 0.80, "description": "Phishing URL targeting credential theft", "source": "phish-tank", "threat_type": "phishing"},
-    {"ioc_type": "email", "ioc_value": "attacker@protonmail.com", "severity": "medium", "confidence": 0.70, "description": "Suspicious email used in social engineering", "source": "abuse-report", "threat_type": "social_engineering"},
+    {
+        "ioc_type": "ip",
+        "ioc_value": "192.168.1.100",
+        "severity": "high",
+        "confidence": 0.85,
+        "description": "Known brute force source IP",
+        "source": "internal-siem",
+        "threat_type": "brute_force",
+    },
+    {
+        "ioc_type": "domain",
+        "ioc_value": "evil-c2.example.com",
+        "severity": "critical",
+        "confidence": 0.95,
+        "description": "C2 domain observed in multiple incidents",
+        "source": "threat-feed",
+        "threat_type": "c2",
+    },
+    {
+        "ioc_type": "hash",
+        "ioc_value": "d41d8cd98f00b204e9800998ecf8427e",
+        "severity": "critical",
+        "confidence": 0.90,
+        "description": "SHA256 of known malware sample",
+        "source": "virustotal",
+        "threat_type": "malware",
+    },
+    {
+        "ioc_type": "url",
+        "ioc_value": "https://phishing.example.com/login",
+        "severity": "high",
+        "confidence": 0.80,
+        "description": "Phishing URL targeting credential theft",
+        "source": "phish-tank",
+        "threat_type": "phishing",
+    },
+    {
+        "ioc_type": "email",
+        "ioc_value": "attacker@protonmail.com",
+        "severity": "medium",
+        "confidence": 0.70,
+        "description": "Suspicious email used in social engineering",
+        "source": "abuse-report",
+        "threat_type": "social_engineering",
+    },
 ]
 
 THREAT_INTEL = [
@@ -185,14 +288,24 @@ EVENT_SOURCES = [
 ]
 
 ACTIONS = [
-    "login", "login_failed", "logout",
-    "file_access", "file_create", "file_delete",
-    "process_created", "process_terminated",
-    "sudo", "sudo_command",
-    "connection_attempt", "connection_established",
-    "dns_query", "http_request",
-    "service_start", "service_stop",
-    "policy_change", "audit_log_cleared",
+    "login",
+    "login_failed",
+    "logout",
+    "file_access",
+    "file_create",
+    "file_delete",
+    "process_created",
+    "process_terminated",
+    "sudo",
+    "sudo_command",
+    "connection_attempt",
+    "connection_established",
+    "dns_query",
+    "http_request",
+    "service_start",
+    "service_stop",
+    "policy_change",
+    "audit_log_cleared",
 ]
 
 SEVERITIES = ["info", "low", "medium", "high", "critical"]
@@ -205,13 +318,14 @@ USERS_LIST = ["admin", "root", "analyst1", "analyst2", "viewer1", "svc-account",
 def _random_event(seed: int) -> dict:
     """Deterministic pseudo-random event from seed."""
     s = seed
+
     def _pick(lst):
         nonlocal s
         s = (s * 1103515245 + 12345) & 0x7FFFFFFF
         return lst[s % len(lst)]
 
     src, src_type, category = _pick(EVENT_SOURCES)
-    now = datetime.now(timezone.utc) - timedelta(minutes=seed % 60)
+    now = datetime.now(UTC) - timedelta(minutes=seed % 60)
 
     return {
         "event_id": f"evt-demo-{seed:04d}",
@@ -235,6 +349,7 @@ def _random_event(seed: int) -> dict:
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
 
 async def seed(url: str):
     engine = create_async_engine(url, echo=False)

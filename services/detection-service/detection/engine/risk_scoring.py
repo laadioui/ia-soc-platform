@@ -71,7 +71,9 @@ class RiskScorer:
         components["user_risk"] = user_score
 
         # Behavior anomaly (0-1) — unknown -> neutral
-        components["behavior_anomaly"] = 0.5 if behavior_anomaly_score is None else max(0.0, min(behavior_anomaly_score, 1.0))
+        components["behavior_anomaly"] = (
+            0.5 if behavior_anomaly_score is None else max(0.0, min(behavior_anomaly_score, 1.0))
+        )
 
         # MITRE mapping (0-1) — if a technique is present, bump score
         if mitre_technique is None:
@@ -82,9 +84,7 @@ class RiskScorer:
             mitre_score = 0.2
         components["mitre_mapping"] = mitre_score
 
-        weighted = sum(
-            components[k] * (WEIGHTS[k] / 100.0) for k in WEIGHTS
-        )
+        weighted = sum(components[k] * (WEIGHTS[k] / 100.0) for k in WEIGHTS)
         total = round(weighted * 100, 2)
 
         logger.debug(

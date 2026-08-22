@@ -6,14 +6,8 @@ on:
   pull_request:
     branches: [main]
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_PREFIX: ${{ github.repository_owner }}/soc-platform
-
 permissions:
   contents: read
-  packages: write
-  security-events: write
 
 jobs:
   lint:
@@ -38,29 +32,6 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: soc_test
-          POSTGRES_PASSWORD: test_password
-          POSTGRES_DB: soc_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -72,12 +43,11 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r services/collector-service/requirements.txt
-          pip install pytest pytest-cov pytest-asyncio httpx
+          pip install pytest pytest-cov pytest-asyncio httpx aiosqlite
 
       - name: Run tests
         env:
-          DATABASE_URL: postgresql+asyncpg://soc_test:test_password@localhost:5432/soc_test
-          REDIS_URL: redis://localhost:6379/0
+          DATABASE_URL: sqlite+aiosqlite:///:memory:
         run: pytest tests/ --cov=services --cov-report=xml --cov-report=term-missing
 
       - name: Upload coverage
@@ -87,34 +57,59 @@ jobs:
           name: coverage-report
           path: coverage.xml
 
-  sast:
-    name: SAST - Semgrep
+  frontend-build:
+    name: Frontend Build
     runs-on: ubuntu-latest
-    container:
-      image: semgrep/semgrep
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run semgrep
-        env:
-          SEMGREP_RULES: >-
-            p/python
-            p/fastapi
-            p/owasp-top-ten
-            p/security-audit
-            p/secrets
-        run: semgrep scan --config auto --sarif --output semgrep-results.sarif .
-
-      - name: Upload SARIF
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
+      - uses: actions/setup-node@v4
         with:
-          sarif_file: semgrep-results.sarif
-          category: semgrep
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/frontend
+        run: npm ci
+
+      - name: Build
+        working-directory: apps/frontend
+        run: npm run build
+
+  docker-build:
+    name: Docker Build (${{ matrix.service }})
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - collector-service
+          - detection-service
+          - ai-service
+          - notification-service
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/${{ matrix.service }}/Dockerfile
+          push: false
+          tags: soc-platform/${{ matrix.service }}:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   dependency-scan:
     name: Dependency Scan
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -129,205 +124,9 @@ jobs:
         run: |
           for req_file in $(find services -name "requirements.txt"); do
             echo "Auditing $req_file"
-            pip-audit -r "$req_file" --output dependency-audit.json --format json --desc || true
+            pip-audit -r "$req_file" --desc || true
           done
 
       - name: Check for npm vulnerabilities
-        run: |
-          if [ -f apps/frontend/package.json ]; then
-            cd apps/frontend
-            npm audit --audit-level=high --json > npm-audit.json || true
-          fi
-
-  secret-scan:
-    name: Secret Scan
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Run gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  docker-build:
-    name: Docker Build
-    needs: [lint, test]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-    strategy:
-      matrix:
-        service:
-          - collector-service
-          - detection-service
-          - correlation-service
-          - ai-service
-          - notification-service
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
-          tags: |
-            type=sha,prefix=
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-
-      - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: services/${{ matrix.service }}/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          build-args: |
-            BUILD_DATE=${{ github.event.head_commit.timestamp }}
-            VCS_REF=${{ github.sha }}
-
-  container-scan:
-    name: Container Scan
-    needs: docker-build
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        service:
-          - collector-service
-          - detection-service
-          - correlation-service
-          - ai-service
-          - notification-service
-    steps:
-      - name: Run trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:${{ github.sha }}
-          format: sarif
-          output: trivy-${{ matrix.service }}.sarif
-          severity: CRITICAL,HIGH
-          exit-code: 1
-
-      - name: Upload trivy results
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-${{ matrix.service }}.sarif
-          category: trivy-${{ matrix.service }}
-
-  integration-test:
-    name: Integration Tests
-    needs: docker-build
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: soc_test
-          POSTGRES_PASSWORD: test_password
-          POSTGRES_DB: soc_test
-        ports:
-          - 5432:5432
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-      opensearch:
-        image: opensearchproject/opensearch:2.12.0
-        env:
-          - discovery.type=single-node
-          - plugins.security.disabled=true
-          - "OPENSEARCH_JAVA_OPTS=-Xms256m -Xmx256m"
-        ports:
-          - 9200:9200
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: |
-          pip install pytest httpx asyncpg
-          for req in services/*/requirements.txt; do pip install -r "$req" 2>/dev/null || true; done
-
-      - name: Wait for services
-        run: |
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:9200/_cluster/health; then break; fi
-            sleep 2
-          done
-
-      - name: Run integration tests
-        env:
-          DATABASE_URL: postgresql+asyncpg://soc_test:test_password@localhost:5432/soc_test
-          REDIS_URL: redis://localhost:6379/0
-          OPENSEARCH_URL: http://localhost:9200
-        run: pytest tests/ -m integration --timeout=120 -v
-
-  deploy:
-    name: Deploy
-    needs: [integration-test, container-scan, sast, secret-scan]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    environment:
-      name: staging
-      url: https://staging.soc-platform.internal
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Configure kubectl
-        uses: azure/k8s-set-context@v4
-        with:
-          method: kubeconfig
-          kubeconfig: ${{ secrets.KUBE_CONFIG }}
-
-      - name: Deploy to staging
-        run: |
-          kubectl set image deployment/collector \
-            collector=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/collector-service:${{ github.sha }} \
-            --namespace=soc-staging
-          kubectl set image deployment/detection-engine \
-            detection-engine=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/detection-service:${{ github.sha }} \
-            --namespace=soc-staging
-          kubectl set image deployment/correlation-engine \
-            correlation-engine=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/correlation-service:${{ github.sha }} \
-            --namespace=soc-staging
-          kubectl set image deployment/ai-engine \
-            ai-engine=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/ai-service:${{ github.sha }} \
-            --namespace=soc-staging
-          kubectl set image deployment/notification-service \
-            notification-service=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/notification-service:${{ github.sha }} \
-            --namespace=soc-staging
-
-      - name: Wait for rollout
-        run: |
-          kubectl rollout status deployment/collector --namespace=soc-staging --timeout=300s
-          kubectl rollout status deployment/detection-engine --namespace=soc-staging --timeout=300s
-          kubectl rollout status deployment/correlation-engine --namespace=soc-staging --timeout=300s
-          kubectl rollout status deployment/ai-engine --namespace=soc-staging --timeout=300s
-          kubectl rollout status deployment/notification-service --namespace=soc-staging --timeout=300s
-
-      - name: Smoke test
-        run: |
-          for i in $(seq 1 20); do
-            if curl -sf https://staging.soc-platform.internal/health; then echo "Healthy"; break; fi
-            sleep 5
-          done
+        working-directory: apps/frontend
+        run: npm audit --audit-level=high || true

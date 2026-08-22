@@ -1,11 +1,15 @@
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Table, Column, func, Text, Uuid
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Table, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 from app.models.base import TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.incident import Incident
 
 role_permissions = Table(
     "role_permissions",
@@ -40,9 +44,7 @@ class Role(TimestampMixin, Base):
     description: Mapped[str | None] = mapped_column(Text)
     level: Mapped[int] = mapped_column(default=0)
 
-    permissions: Mapped[list["Permission"]] = relationship(
-        secondary=role_permissions, back_populates="roles"
-    )
+    permissions: Mapped[list["Permission"]] = relationship(secondary=role_permissions, back_populates="roles")
     users: Mapped[list["User"]] = relationship(secondary=user_roles, back_populates="roles")
 
 

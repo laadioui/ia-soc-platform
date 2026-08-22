@@ -1,6 +1,4 @@
-import uuid
-
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -56,7 +54,7 @@ async def lookup_indicator(indicator_value: str, db: AsyncSession = Depends(get_
     result = await db.execute(
         select(ThreatIntelligence).where(
             ThreatIntelligence.indicator_value == indicator_value,
-            ThreatIntelligence.is_active == True,
+            ThreatIntelligence.is_active.is_(True),
         )
     )
     ti = result.scalar_one_or_none()

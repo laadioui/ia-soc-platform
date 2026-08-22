@@ -39,11 +39,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if client_ip not in self._requests:
             self._requests[client_ip] = []
 
-        self._requests[client_ip] = [
-            t for t in self._requests[client_ip] if now - t < window
-        ]
+        self._requests[client_ip] = [t for t in self._requests[client_ip] if now - t < window]
 
-        limit = settings.RATE_LIMIT_LOGIN_PER_MINUTE if "/auth/login" in request.url.path else settings.RATE_LIMIT_PER_MINUTE
+        limit = (
+            settings.RATE_LIMIT_LOGIN_PER_MINUTE
+            if "/auth/login" in request.url.path
+            else settings.RATE_LIMIT_PER_MINUTE
+        )
 
         if len(self._requests[client_ip]) >= limit:
             return Response(

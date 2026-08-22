@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
+from datetime import UTC
 
 import structlog
 
@@ -79,10 +80,7 @@ class RuleEngine:
                     rule_id="BRUTE-FORCE-001",
                     rule_name="Brute Force Login Attempt",
                     severity="high",
-                    description=(
-                        f"{count} failed login attempts from {src_ip} "
-                        f"in the last {window}s"
-                    ),
+                    description=(f"{count} failed login attempts from {src_ip} in the last {window}s"),
                     mitre_tactic="Credential Access",
                     mitre_technique="T1110",
                     source_ip=src_ip,
@@ -129,10 +127,7 @@ class RuleEngine:
                     rule_id="PORT-SCAN-001",
                     rule_name="Port Scanning Activity",
                     severity="high",
-                    description=(
-                        f"{src_ip} accessed {len(distinct_ports)} distinct ports "
-                        f"in {window}s"
-                    ),
+                    description=(f"{src_ip} accessed {len(distinct_ports)} distinct ports in {window}s"),
                     mitre_tactic="Discovery",
                     mitre_technique="T1046",
                     source_ip=src_ip,
@@ -180,10 +175,7 @@ class RuleEngine:
                 rule_id="PRIV-ESC-001",
                 rule_name="Privilege Escalation Attempt",
                 severity="critical",
-                description=(
-                    f"Privilege escalation event '{action}' by user '{user}' "
-                    f"from {src_ip}"
-                ),
+                description=(f"Privilege escalation event '{action}' by user '{user}' from {src_ip}"),
                 mitre_tactic="Privilege Escalation",
                 mitre_technique="T1548",
                 source_ip=src_ip,
@@ -205,7 +197,7 @@ class RuleEngine:
         if event.get("status") == "failure" or "fail" in action:
             return []
 
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         ts_raw = event.get("timestamp", event.get("@timestamp", ""))
         if ts_raw:
@@ -213,11 +205,11 @@ class RuleEngine:
                 if isinstance(ts_raw, str):
                     ts = datetime.fromisoformat(ts_raw.replace("Z", "+00:00"))
                 else:
-                    ts = datetime.fromtimestamp(float(ts_raw), tz=timezone.utc)
+                    ts = datetime.fromtimestamp(float(ts_raw), tz=UTC)
             except (ValueError, OSError):
-                ts = datetime.now(timezone.utc)
+                ts = datetime.now(UTC)
         else:
-            ts = datetime.now(timezone.utc)
+            ts = datetime.now(UTC)
 
         hour = ts.hour
         start = settings.UNUSUAL_LOGIN_START_HOUR
@@ -241,10 +233,7 @@ class RuleEngine:
                 rule_id="UNUSUAL-HOURS-001",
                 rule_name="Unusual Login Hours",
                 severity="medium",
-                description=(
-                    f"Login by user '{user}' at unusual hour {hour:02d}:00 UTC "
-                    f"from {src_ip}"
-                ),
+                description=(f"Login by user '{user}' at unusual hour {hour:02d}:00 UTC from {src_ip}"),
                 mitre_tactic="Defense Evasion",
                 mitre_technique="T1078",
                 source_ip=src_ip,

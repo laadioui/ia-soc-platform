@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -87,15 +87,12 @@ class KafkaProducerService:
         message_id = str(uuid.uuid4())
         enriched = {
             "message_id": message_id,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "topic": topic,
             **payload,
         }
 
-        kafka_headers = [
-            (k.encode("utf-8"), v.encode("utf-8"))
-            for k, v in (headers or {}).items()
-        ]
+        kafka_headers = [(k.encode("utf-8"), v.encode("utf-8")) for k, v in (headers or {}).items()]
 
         partition_key = key or message_id
 

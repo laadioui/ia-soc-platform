@@ -134,10 +134,26 @@ async def get_incident_timeline(incident_id: uuid.UUID, db: AsyncSession = Depen
         raise HTTPException(status_code=404, detail="Incident not found")
 
     return IncidentTimeline(
-        events=[{"event_id": e.event_id_str, "added_by": e.added_by, "notes": e.notes, "timestamp": e.created_at.isoformat()} for e in incident.events],
+        events=[
+            {
+                "event_id": e.event_id_str,
+                "added_by": e.added_by,
+                "notes": e.notes,
+                "timestamp": e.created_at.isoformat(),
+            }
+            for e in incident.events
+        ],
         alerts=[],
         iocs=[{"type": i.ioc_type, "value": i.ioc_value, "confidence": i.confidence} for i in incident.iocs],
-        mitre_techniques=[{"technique_id": m.technique_id, "confidence": m.confidence} for m in incident.mitre_mappings],
-        response_actions=[{"type": a.action_type, "target": a.target, "status": a.status, "is_simulated": a.is_simulated} for a in incident.response_actions],
-        ai_analyses=[{"type": a.analysis_type, "response": a.response[:200], "confidence": a.confidence} for a in incident.ai_analyses],
+        mitre_techniques=[
+            {"technique_id": m.technique_id, "confidence": m.confidence} for m in incident.mitre_mappings
+        ],
+        response_actions=[
+            {"type": a.action_type, "target": a.target, "status": a.status, "is_simulated": a.is_simulated}
+            for a in incident.response_actions
+        ],
+        ai_analyses=[
+            {"type": a.analysis_type, "response": a.response[:200], "confidence": a.confidence}
+            for a in incident.ai_analyses
+        ],
     )

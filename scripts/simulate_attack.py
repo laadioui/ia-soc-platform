@@ -11,23 +11,22 @@ Usage:
     python scripts/simulate_attack.py --postgres    # PostgreSQL
     python scripts/simulate_attack.py --dry-run     # print events only
 """
+
 from __future__ import annotations
 
 import argparse
 import asyncio
-import json
+import os
+import sys
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "services", "collector-service"))
 
 from app.core.database import Base
 from app.models.event import SecurityEvent
-from app.models.alert import Alert
-from app.models.incident import Incident
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL",
@@ -39,7 +38,7 @@ VICTIM_HOST = "webserver-01"
 VICTIM_IP = "10.0.0.5"
 COMPROMISED_USER = "admin"
 OTHER_HOSTS = ["fileserver-01", "dbserver-01", "appserver-01"]
-BASE_TIME = datetime.now(timezone.utc)
+BASE_TIME = datetime.now(UTC)
 
 
 def _event_id() -> str:
@@ -69,44 +68,51 @@ def _make_event(phase: int, minute_offset: int, **kwargs) -> dict:
 # Phase definitions
 # ---------------------------------------------------------------------------
 
+
 def phase1_brute_force() -> list[dict]:
     """Phase 1: 15 failed login attempts from the attacker IP."""
     events = []
     for i in range(15):
-        events.append(_make_event(
-            phase=1,
-            minute_offset=i,
-            action="login_failed",
-            severity="medium",
-            user_name="admin" if i < 10 else "root",
-            raw_event={"attempt": i + 1, "method": "password"},
-        ))
+        events.append(
+            _make_event(
+                phase=1,
+                minute_offset=i,
+                action="login_failed",
+                severity="medium",
+                user_name="admin" if i < 10 else "root",
+                raw_event={"attempt": i + 1, "method": "password"},
+            )
+        )
     return events
 
 
 def phase2_successful_login() -> list[dict]:
     """Phase 2: Successful login after brute force."""
-    return [_make_event(
-        phase=2,
-        minute_offset=16,
-        action="login",
-        severity="low",
-        user_name=COMPROMISED_USER,
-        raw_event={"method": "password", "session_id": "sess-abcdef123"},
-    )]
+    return [
+        _make_event(
+            phase=2,
+            minute_offset=16,
+            action="login",
+            severity="low",
+            user_name=COMPROMISED_USER,
+            raw_event={"method": "password", "session_id": "sess-abcdef123"},
+        )
+    ]
 
 
 def phase3_privilege_escalation() -> list[dict]:
     """Phase 3: User escalates to root."""
-    return [_make_event(
-        phase=3,
-        minute_offset=20,
-        action="sudo",
-        severity="critical",
-        category="privilege_escalation",
-        user_name=COMPROMISED_USER,
-        raw_event={"command": "sudo bash", "terminal": "pts/0"},
-    )]
+    return [
+        _make_event(
+            phase=3,
+            minute_offset=20,
+            action="sudo",
+            severity="critical",
+            category="privilege_escalation",
+            user_name=COMPROMISED_USER,
+            raw_event={"command": "sudo bash", "terminal": "pts/0"},
+        )
+    ]
 
 
 def phase4_sensitive_file_access() -> list[dict]:
@@ -114,15 +120,17 @@ def phase4_sensitive_file_access() -> list[dict]:
     files = ["/etc/shadow", "/etc/passwd", "/root/.ssh/id_rsa", "/var/log/auth.log"]
     events = []
     for i, filepath in enumerate(files):
-        events.append(_make_event(
-            phase=4,
-            minute_offset=25 + i,
-            action="file_access",
-            severity="high",
-            category="file_access",
-            user_name="root",
-            raw_event={"file_path": filepath, "operation": "read"},
-        ))
+        events.append(
+            _make_event(
+                phase=4,
+                minute_offset=25 + i,
+                action="file_access",
+                severity="high",
+                category="file_access",
+                user_name="root",
+                raw_event={"file_path": filepath, "operation": "read"},
+            )
+        )
     return events
 
 
@@ -130,35 +138,40 @@ def phase5_lateral_movement() -> list[dict]:
     """Phase 5: Move to other hosts."""
     events = []
     for i, host in enumerate(OTHER_HOSTS):
-        events.append(_make_event(
+        events.append(
+            _make_event(
+                phase=5,
+                minute_offset=30 + i,
+                action="ssh_connection",
+                severity="critical",
+                category="lateral_movement",
+                source_ip=ATTACKER_IP,
+                destination_ip=f"10.0.0.{10 + i}",
+                hostname=host,
+                user_name="root",
+                raw_event={"method": "ssh", "key_used": "stolen_rsa"},
+            )
+        )
+    events.append(
+        _make_event(
             phase=5,
-            minute_offset=30 + i,
-            action="ssh_connection",
-            severity="critical",
+            minute_offset=34,
+            action="smb_connection",
+            severity="high",
             category="lateral_movement",
-            source_ip=ATTACKER_IP,
-            destination_ip=f"10.0.0.{10 + i}",
-            hostname=host,
-            user_name="root",
-            raw_event={"method": "ssh", "key_used": "stolen_rsa"},
-        ))
-    events.append(_make_event(
-        phase=5,
-        minute_offset=34,
-        action="smb_connection",
-        severity="high",
-        category="lateral_movement",
-        destination_port=445,
-        hostname="fileserver-01",
-        user_name="admin",
-        raw_event={"share": "\\\\fileserver-01\\C$", "access_level": "full"},
-    ))
+            destination_port=445,
+            hostname="fileserver-01",
+            user_name="admin",
+            raw_event={"share": "\\\\fileserver-01\\C$", "access_level": "full"},
+        )
+    )
     return events
 
 
 # ---------------------------------------------------------------------------
 # All phases combined
 # ---------------------------------------------------------------------------
+
 
 def generate_attack_events() -> list[dict]:
     events = []
@@ -174,13 +187,14 @@ def generate_attack_events() -> list[dict]:
 # Runner
 # ---------------------------------------------------------------------------
 
+
 async def run_attack(url: str, dry_run: bool = False):
     events = generate_attack_events()
 
     if dry_run:
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print(f"  ATTACK SIMULATION — {len(events)} events across 5 phases")
-        print(f"{'='*70}\n")
+        print(f"{'=' * 70}\n")
         for evt in events:
             ts = evt["timestamp"].strftime("%H:%M:%S")
             print(
@@ -191,11 +205,11 @@ async def run_attack(url: str, dry_run: bool = False):
                 f"user={evt['user_name']:<15} "
                 f"sev={evt['severity']}"
             )
-        print(f"\n  Summary:")
+        print("\n  Summary:")
         print(f"    Phase 1 — Brute force:            15 failed logins from {ATTACKER_IP}")
         print(f"    Phase 2 — Compromised login:       1 successful login as {COMPROMISED_USER}")
-        print(f"    Phase 3 — Privilege escalation:    sudo → root")
-        print(f"    Phase 4 — Sensitive file access:   /etc/shadow, /root/.ssh/id_rsa, …")
+        print("    Phase 3 — Privilege escalation:    sudo → root")
+        print("    Phase 4 — Sensitive file access:   /etc/shadow, /root/.ssh/id_rsa, …")
         print(f"    Phase 5 — Lateral movement:        SSH/SMB to {', '.join(OTHER_HOSTS)}")
         return
 
@@ -220,7 +234,7 @@ async def run_attack(url: str, dry_run: bool = False):
             for evt in phase_events:
                 db_evt = SecurityEvent(
                     id=uuid.uuid4(),
-                    **{k: v for k, v in evt.items() if k in SecurityEvent.__table__.columns.keys()},
+                    **{k: v for k, v in evt.items() if k in SecurityEvent.__table__.columns},
                 )
                 session.add(db_evt)
                 total += 1
@@ -231,8 +245,8 @@ async def run_attack(url: str, dry_run: bool = False):
             print(f"    ✓ Ingested {len(phase_events)} events")
 
         print(f"\n[✓] Attack simulation complete — {total} events ingested")
-        print(f"    Detection engine will now process events and generate alerts.")
-        print(f"    Check /api/v1/alerts/ and /api/v1/incidents/ for results.")
+        print("    Detection engine will now process events and generate alerts.")
+        print("    Check /api/v1/alerts/ and /api/v1/incidents/ for results.")
 
     await engine.dispose()
 

@@ -13,4 +13,6 @@ COPY services/collector-service/ .
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+# Single worker by default: the demo runs on SQLite, where concurrent writers
+# would contend. Scale with WEB_CONCURRENCY only on a real database backend.
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${WEB_CONCURRENCY:-1}

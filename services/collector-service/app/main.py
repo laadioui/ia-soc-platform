@@ -7,8 +7,9 @@ from prometheus_client import make_asgi_app
 
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.core.database import engine, init_db
+from app.core.database import async_session, engine, init_db
 from app.core.middleware import RateLimitMiddleware, RequestLoggingMiddleware
+from app.services.demo_seed import seed_if_empty
 
 logger = structlog.get_logger()
 
@@ -19,6 +20,9 @@ metrics_app = make_asgi_app()
 async def lifespan(app: FastAPI):
     logger.info("Starting AI SOC Platform API", version=settings.APP_VERSION)
     await init_db()
+    if settings.SEED_DEMO_DATA:
+        async with async_session() as session:
+            await seed_if_empty(session)
     yield
     logger.info("Shutting down AI SOC Platform API")
     await engine.dispose()

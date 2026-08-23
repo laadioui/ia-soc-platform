@@ -84,3 +84,6 @@ tmp-*.json
 
 # Local tunnel tooling
 .tools/
+
+# Local LinkedIn marketing assets
+linkedin-assets/

@@ -120,16 +120,27 @@ ai-soc-platform/
 | [Threat Model](docs/security/threat-model.md) | Modèle de menaces STRIDE |
 | [Technical Decisions](docs/architecture/technical-decisions.md) | ADR et choix techniques |
 | [Roadmap](docs/architecture/roadmap.md) | Plan de développement par phases |
+| [Deployment](DEPLOYMENT.md) | Déploiement gratuit permanent : Vercel + Render |
 
 ## Getting Started
 
-> **Phase 1** : Architecture uniquement. L'infrastructure et le code seront disponibles à partir de la Phase 2.
-
 ```bash
-# Phase 2 (à venir)
-cp .env.example .env
-make up
+# Backend (FastAPI) — avec données de démo auto-injectées
+cd services/collector-service
+pip install -r requirements.txt
+SEED_DEMO_DATA=true uvicorn app.main:app --port 8000
+
+# Frontend (Next.js)
+cd apps/frontend
+npm install
+NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1 npm run dev
 ```
+
+Comptes de démonstration : `socadmin / AdminPass123!` — `analyst / Analyst@2026!`
+
+Pour un hébergement public gratuit et permanent (URLs stables), suivez le
+guide [DEPLOYMENT.md](DEPLOYMENT.md) : backend Docker sur Render
+(`render.yaml` fourni), frontend sur Vercel.
 
 ## Security
 

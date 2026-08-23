@@ -1,0 +1,29 @@
+# Render Blueprint — AI SOC Platform backend (free tier)
+# Deploy: Render dashboard → New → Blueprint → select this repository.
+# After the frontend is deployed on Vercel, update CORS_ORIGINS with the
+# Vercel URL (Environment tab → edit → Save & Deploy).
+services:
+  - type: web
+    name: ai-soc-platform-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./services/collector-service/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:///./soc_platform.db
+      - key: SEED_DEMO_DATA
+        value: "true"
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "300"
+      - key: RATE_LIMIT_LOGIN_PER_MINUTE
+        value: "30"
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      # Enter the Vercel frontend URL here when prompted, e.g.:
+      # ["https://ai-soc-platform.vercel.app"]
+      # (it can be updated later in the dashboard)
+      - key: CORS_ORIGINS
+        sync: false

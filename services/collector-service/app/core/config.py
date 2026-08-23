@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     DATABASE_URL: str = "sqlite+aiosqlite:///./soc_platform.db"
+    SEED_DEMO_DATA: bool = False
     REDIS_URL: str = "redis://localhost:6379/0"
 
     KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"

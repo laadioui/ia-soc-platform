@@ -1,0 +1,7 @@
+# Local artifacts not needed in the serverless bundle
+soc_platform.db
+__pycache__/
+*.pyc
+.env
+alembic/
+tests/

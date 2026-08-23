@@ -9,6 +9,7 @@ import {
   Bot,
   Globe,
   LayoutDashboard,
+  Menu,
   PanelLeftClose,
   PanelLeftOpen,
   RefreshCw,
@@ -19,6 +20,7 @@ import {
   Target,
   Wifi,
   WifiOff,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api, defaultSettings, loadSettings, type SocSettings } from "@/lib/api";
@@ -58,6 +60,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const toast = useToast();
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [source, setSource] = useState<"live" | "demo">("demo");
   const [settings, setSettingsState] = useState<SocSettings>(defaultShellSettings);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -169,10 +172,10 @@ function AppShellInner({ children }: { children: ReactNode }) {
   return (
     <AppCtx.Provider value={appState}>
     <div className="relative z-10 flex min-h-screen">
-      {/* ─── Sidebar ─── */}
+      {/* ─── Sidebar (desktop) ─── */}
       <aside
         className={cn(
-          "sticky top-0 flex h-screen shrink-0 flex-col border-r border-slate-800/80 bg-gradient-to-b from-[#0c1322]/95 to-[#080d18]/95 backdrop-blur-md transition-[width] duration-300",
+          "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-slate-800/80 bg-gradient-to-b from-[#0c1322]/95 to-[#080d18]/95 backdrop-blur-md transition-[width] duration-300 lg:flex",
           collapsed ? "w-[68px]" : "w-[232px]"
         )}
         style={{ perspective: 1200 }}
@@ -225,11 +228,72 @@ function AppShellInner({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
+      {/* ─── Drawer (mobile / tablet) ─── */}
+      {mobileOpen ? (
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true">
+          <button
+            aria-label="Close menu"
+            className="absolute inset-0 h-full w-full cursor-default bg-slate-950/70 backdrop-blur-sm"
+            onClick={() => setMobileOpen(false)}
+          />
+          <aside className="absolute inset-y-0 left-0 flex w-[264px] flex-col border-r border-slate-800/80 bg-gradient-to-b from-[#0c1322] to-[#080d18] shadow-2xl">
+            <div className="flex items-center gap-3 px-4 py-5">
+              <div className="plate-3d float-3d h-10 w-10 shrink-0 border-cyan-500/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_8px_18px_rgba(0,212,255,0.25)]">
+                <Shield className="h-5 w-5 text-cyan-300" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-3d truncate text-[15px] font-black tracking-tight text-white">SOC Platform</p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-400/80">AI Defense</p>
+              </div>
+              <button onClick={() => setMobileOpen(false)} className="nav-pill w-auto px-2" aria-label="Close menu">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2">
+              {navItems.map((item) => {
+                const active = pathname === item.href || pathname?.startsWith(item.href + "/");
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileOpen(false)}
+                    className={cn("nav-pill", active && "nav-pill-active")}
+                  >
+                    <item.icon className="h-[18px] w-[18px] shrink-0" />
+                    <span className="truncate">{item.label}</span>
+                    {item.badge > 0 ? (
+                      <span
+                        className={cn(
+                          "ml-auto rounded-full border px-1.5 py-px text-[10px] font-bold",
+                          active
+                            ? "border-cyan-900/40 bg-cyan-950/40 text-cyan-100"
+                            : "border-slate-600/40 bg-slate-800/80 text-slate-400"
+                        )}
+                      >
+                        {item.badge > 999 ? "999+" : item.badge}
+                      </span>
+                    ) : null}
+                  </Link>
+                );
+              })}
+            </nav>
+          </aside>
+        </div>
+      ) : null}
+
       {/* ─── Main column ─── */}
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Topbar */}
         <header className="sticky top-0 z-30 border-b border-slate-800/80 bg-[#0a0f1c]/85 backdrop-blur-md">
-          <div className="flex flex-wrap items-center gap-3 px-5 py-3">
+          <div className="flex flex-wrap items-center gap-2 px-3 py-3 sm:gap-3 sm:px-5">
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="btn-3d btn-3d-sm lg:hidden"
+              aria-label="Open menu"
+            >
+              <Menu className="h-4 w-4" />
+            </button>
+
             <div className="panel-inset flex items-center gap-2 px-3 py-1.5">
               {source === "live" ? (
                 <>
@@ -245,7 +309,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
               <span className={cn("h-2 w-2 rounded-full", source === "live" ? "bg-emerald-400 pulse-ring !shadow-none" : "bg-amber-400")} />
             </div>
 
-            <span className="panel-inset px-3 py-1.5 font-mono text-xs tracking-widest text-cyan-300">{clock} UTC{new Date().getTimezoneOffset() <= 0 ? "+" : ""}{-new Date().getTimezoneOffset() / 60}</span>
+            <span className="panel-inset hidden px-3 py-1.5 font-mono text-xs tracking-widest text-cyan-300 sm:inline-block">{clock} UTC{new Date().getTimezoneOffset() <= 0 ? "+" : ""}{-new Date().getTimezoneOffset() / 60}</span>
 
             <div className="ml-auto flex items-center gap-2">
               <button
@@ -265,8 +329,8 @@ function AppShellInner({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main className="flex-1 px-5 py-6 lg:px-7">
-          <div key={refreshKey} className="animate-rise mx-auto max-w-[1500px] space-y-6">
+        <main className="flex-1 px-3 py-4 sm:px-5 sm:py-6 lg:px-7">
+          <div key={refreshKey} className="animate-rise mx-auto max-w-[1500px] space-y-4 sm:space-y-6">
             {children}
           </div>
         </main>

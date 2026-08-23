@@ -1,4 +1,11 @@
+import os
+
 from pydantic_settings import BaseSettings
+
+# On Vercel serverless only /tmp is writable: default the SQLite file there.
+_DEFAULT_DB = (
+    "sqlite+aiosqlite:////tmp/soc_platform.db" if os.environ.get("VERCEL") else "sqlite+aiosqlite:///./soc_platform.db"
+)
 
 
 class Settings(BaseSettings):
@@ -7,7 +14,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     LOG_LEVEL: str = "INFO"
 
-    DATABASE_URL: str = "sqlite+aiosqlite:///./soc_platform.db"
+    DATABASE_URL: str = _DEFAULT_DB
     SEED_DEMO_DATA: bool = False
     REDIS_URL: str = "redis://localhost:6379/0"
 

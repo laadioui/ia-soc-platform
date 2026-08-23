@@ -138,9 +138,16 @@ NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1 npm run dev
 
 Comptes de démonstration : `socadmin / AdminPass123!` — `analyst / Analyst@2026!`
 
-Pour un hébergement public gratuit et permanent (URLs stables), suivez le
-guide [DEPLOYMENT.md](DEPLOYMENT.md) : backend Docker sur Render
-(`render.yaml` fourni), frontend sur Vercel.
+## 🌐 Démo en ligne (gratuit, permanent)
+
+- **Application** : https://ia-soc-platform.vercel.app — responsive téléphone / tablette / PC
+- **API** : https://ai-soc-platform-api.vercel.app (docs : [/docs](https://ai-soc-platform-api.vercel.app/docs), health : `/health`)
+
+Hébergement gratuit sur Vercel : frontend Next.js + backend FastAPI en fonction
+Python serverless (SQLite en `/tmp` avec réinjection automatique des données
+de démo à chaque cold start via `SEED_DEMO_DATA=true`). Interface adaptée aux
+mobiles (tiroir de navigation) depuis août 2026. Voir [DEPLOYMENT.md](DEPLOYMENT.md)
+pour l'architecture cible Render + Vercel et les alternatives.
 
 ## Security
 

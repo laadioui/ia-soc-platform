@@ -1,4 +1,24 @@
-# 🚀 Déploiement permanent gratuit — Vercel (frontend) + Render (backend)
+# 🚀 Déploiement permanent gratuit
+
+> **✅ État actuel (août 2026) — déployé et en ligne :**
+>
+> | Composant | URL | Hébergement |
+> |---|---|---|
+> | Application | https://ia-soc-platform.vercel.app | Vercel (Next.js) |
+> | API | https://ai-soc-platform-api.vercel.app | Vercel (Python serverless) |
+>
+> Le backend tourne en **fonction Python serverless** sur Vercel
+> (`services/collector-service/api/index.py` + `vercel.json`) : SQLite en
+> `/tmp`, données de démo réinjectées à chaque cold start
+> (`SEED_DEMO_DATA=true`), CORS restreint au domaine du frontend. Le rendu
+> est responsive (téléphone / tablette / PC).
+>
+> **Pourquoi pas Render ?** Le plan gratuit de Render exige désormais une
+> **carte bancaire de vérification** ($1 d'autorisation temporaire) avant
+> toute création de service. Le repo reste 100 % compatible Render
+> (`render.yaml` + Dockerfile) : ajoutez simplement une carte dans le
+> dashboard Render → New → Blueprint pour basculer. Aucune carte n'est
+> requise pour la solution Vercel décrite ci-dessous.
 
 Ce guide déploie l'application **sans coût** avec des URLs permanentes, à partir
 du repo GitHub `laadioui/ia-soc-platform`. Tout le nécessaire est déjà dans le
